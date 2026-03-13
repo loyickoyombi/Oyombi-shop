@@ -1,1 +1,764 @@
-<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>Oyombi Shop</title><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Nunito',sans-serif;background:#0a0d14;color:#fff}#root{min-height:100vh}</style></head><body><div id="root"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+<title>Oyombi Shop</title>
+<meta name="theme-color" content="#FF6B35"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Oyombi Shop"/>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Nunito',sans-serif;background:#0a0d14;color:#fff;overflow-x:hidden}
+#root{min-height:100vh}
+#splash{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0d3d4f 0%,#0a0d14 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.6s ease}
+#splash.hidden{opacity:0;pointer-events:none}
+#splash .ico{font-size:72px;margin-bottom:16px;animation:pulse 1.5s ease-in-out infinite}
+#splash h1{font-size:34px;font-weight:900;color:#FF6B35;margin-bottom:4px}
+#splash p{font-size:13px;color:#9CA3AF;letter-spacing:2px}
+#splash .bar{width:220px;height:4px;background:#1f2937;border-radius:4px;margin-top:32px;overflow:hidden}
+#splash .fill{height:100%;background:linear-gradient(90deg,#FF6B35,#ff9a70);border-radius:4px;animation:load 2s ease forwards}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+@keyframes load{from{width:0}to{width:100%}}
+#to-admin{position:fixed;top:16px;right:16px;z-index:500;background:#111827;border:1.5px solid #1f2937;border-radius:12px;padding:8px 14px;color:#6B7280;font-size:12px;font-weight:700;font-family:'Nunito',sans-serif;cursor:pointer;text-decoration:none}
+</style>
+</head>
+<body>
+<div id="splash">
+<div class="ico">🛍️</div>
+<h1>Oyombi Shop</h1>
+<p>STREETWEAR &amp; MODE</p>
+<div class="bar"><div class="fill"></div></div>
+</div>
+<a href="admin-min.html" id="to-admin">⚙️ Admin</a>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useRef = React.useRef;
+
+window.storage = {
+  get: async function(key) {
+    try { var v = localStorage.getItem('oy::'+key); return v ? {key:key,value:v} : null; }
+    catch(e) { return null; }
+  },
+  set: async function(key, value) {
+    try {
+      var v = typeof value === 'string' ? value : JSON.stringify(value);
+      localStorage.setItem('oy::'+key, v); return {key:key,value:v};
+    } catch(e) { return null; }
+  },
+  delete: async function(key) {
+    try { localStorage.removeItem('oy::'+key); return {key:key,deleted:true}; }
+    catch(e) { return null; }
+  },
+  list: async function(prefix) {
+    try {
+      var keys = Object.keys(localStorage)
+        .filter(function(k){ return k.startsWith('oy::'+(prefix||'')); })
+        .map(function(k){ return k.replace('oy::',''); });
+      return {keys:keys};
+    } catch(e) { return {keys:[]}; }
+  }
+};
+var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
+var CATEGORIES = [
+    { id: "hommes", label: "Vêtements Hommes", icon: "👔", color: "#3B82F6" },
+    { id: "femmes", label: "Vêtements Femmes", icon: "👗", color: "#EC4899" },
+    { id: "baskets", label: "Baskets", icon: "👟", color: "#F59E0B" },
+    { id: "parfums", label: "Parfums", icon: "🌸", color: "#8B5CF6" },
+    { id: "acc-hommes", label: "Accessoires Hommes", icon: "⌚", color: "#10B981" },
+    { id: "acc-femmes", label: "Accessoires Femmes", icon: "👜", color: "#F97316" },
+    { id: "sport", label: "Équipements Sport", icon: "⚽", color: "#06B6D4" },
+    { id: "maillots", label: "Maillots", icon: "🏆", color: "#EF4444" },
+];
+var DEFAULT_PRODUCTS = [
+    { id: 1, name: "Hoodie Oversize Premium", category: "hommes", price: 18500, oldPrice: 24000, image: "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=400&q=80", sizes: ["S", "M", "L", "XL", "XXL"], description: "Hoodie oversize ultra-doux, coupe streetwear tendance. Matière premium 320g.", badge: "NEW", rating: 4.8, reviews: 124 },
+    { id: 2, name: "Jordan 1 Retro High", category: "baskets", price: 89000, image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80", sizes: ["40", "41", "42", "43", "44", "45"], description: "Sneakers iconiques, cuir véritable, semelle Air confortable.", badge: "DROP", rating: 4.9, reviews: 89 },
+    { id: 3, name: "Robe Fleurie Été", category: "femmes", price: 12500, image: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400&q=80", sizes: ["XS", "S", "M", "L"], description: "Robe légère fleurie, parfaite pour l'été. Tissu fluide et respirant.", badge: "PROMO", rating: 4.6, reviews: 56 },
+    { id: 4, name: "Parfum Oud Royal 100ml", category: "parfums", price: 35000, image: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=400&q=80", sizes: ["50ml", "100ml"], description: "Fragrance orientale boisée, tenue longue durée 12h+.", badge: null, rating: 4.7, reviews: 43 },
+    { id: 5, name: "Maillot PSG 2024/25", category: "maillots", price: 22000, image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80", sizes: ["S", "M", "L", "XL"], description: "Maillot officiel domicile, technologie Dri-FIT, flocage disponible.", badge: "NEW", rating: 4.5, reviews: 201 },
+    { id: 6, name: "Montre Smartwatch Pro", category: "acc-hommes", price: 45000, oldPrice: 60000, image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&q=80", sizes: ["Unique"], description: "Montre connectée, suivi santé, GPS intégré, waterproof.", badge: "PROMO", rating: 4.4, reviews: 78 },
+    { id: 7, name: "Sac à Main Cuir", category: "acc-femmes", price: 28000, image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=400&q=80", sizes: ["Unique"], description: "Sac en cuir véritable, doublure tissu, plusieurs compartiments.", badge: null, rating: 4.8, reviews: 92 },
+    { id: 8, name: "Kit Sport Complet", category: "sport", price: 31000, image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400&q=80", sizes: ["S", "M", "L", "XL"], description: "Ensemble haut + bas, tissu respirant compression, idéal cardio & muscu.", badge: "NEW", rating: 4.3, reviews: 34 },
+    { id: 9, name: "Cargo Pants Street", category: "hommes", price: 16500, image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=400&q=80", sizes: ["28", "30", "32", "34", "36"], description: "Cargo multi-poches, coupe baggy tendance, tissu ripstop résistant.", badge: null, rating: 4.6, reviews: 67 },
+    { id: 10, name: "Nike Air Max 270", category: "baskets", price: 72000, image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&q=80", sizes: ["38", "39", "40", "41", "42", "43", "44"], description: "Coussin Air Max visible, confort maximal, coloris exclusif.", badge: null, rating: 4.7, reviews: 145 },
+];
+var PROMOS = [
+    { id: 1, name: "Hoodie Oversize Premium", discount: "30% OFF", endTime: Date.now() + 3600000 * 5, image: "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=200&q=80" },
+    { id: 2, name: "Kit Sport Complet", discount: "25% OFF", endTime: Date.now() + 3600000 * 2, image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200&q=80" },
+];
+var NOTIFS = [
+    { id: 1, text: "🔥 DROP Jordan 1 Retro demain à 10h !", time: "2 min", read: false },
+    { id: 2, text: "✅ Votre commande #1042 est confirmée", time: "1h", read: false },
+    { id: 3, text: "🎁 +50 points ajoutés à votre compte", time: "2h", read: true },
+];
+var ORDER_STATUSES = ["Confirmée ✅", "En préparation 📦", "En livraison 🚚", "Livrée 🎉"];
+function useCountdown(endTime) {
+    var _a = useState(endTime - Date.now()), t = _a[0], setT = _a[1];
+    useEffect(function () { var i = setInterval(function () { return setT(endTime - Date.now()); }, 1000); return function () { return clearInterval(i); }; }, [endTime]);
+    var h = Math.max(0, Math.floor(t / 3600000));
+    var m = Math.max(0, Math.floor((t % 3600000) / 60000));
+    var s = Math.max(0, Math.floor((t % 60000) / 1000));
+    return "".concat(String(h).padStart(2, "0"), ":").concat(String(m).padStart(2, "0"), ":").concat(String(s).padStart(2, "0"));
+}
+function CountdownTimer(_a) {
+    var endTime = _a.endTime;
+    var time = useCountdown(endTime);
+    return React.createElement("span", { style: { fontFamily: "monospace", fontWeight: 700, fontSize: 13, background: "#111", color: "#fff", padding: "2px 7px", borderRadius: 6 } },
+        "\u23F1 ",
+        time);
+}
+function OyombiShop() {
+    var _this = this;
+    var _a = useState("home"), screen = _a[0], setScreen = _a[1];
+    var _b = useState(DEFAULT_PRODUCTS), PRODUCTS = _b[0], setPRODUCTS = _b[1];
+    var _c = useState([]), cart = _c[0], setCart = _c[1];
+    var _d = useState(null), user = _d[0], setUser = _d[1];
+    var _e = useState("login"), authMode = _e[0], setAuthMode = _e[1];
+    var _f = useState(null), selectedProduct = _f[0], setSelectedProduct = _f[1];
+    var _g = useState(null), selectedSize = _g[0], setSelectedSize = _g[1];
+    var _h = useState(null), selectedCategory = _h[0], setSelectedCategory = _h[1];
+    var _j = useState(""), searchQuery = _j[0], setSearchQuery = _j[1];
+    var _k = useState("livraison"), payMethod = _k[0], setPayMethod = _k[1];
+    var _l = useState(120), points = _l[0], setPoints = _l[1];
+    var _m = useState(null), toast = _m[0], setToast = _m[1];
+    var _o = useState(false), showNotif = _o[0], setShowNotif = _o[1];
+    var _p = useState(NOTIFS), notifs = _p[0], setNotifs = _p[1];
+    var _q = useState({ name: "", email: "", phone: "", address: "" }), loginForm = _q[0], setLoginForm = _q[1];
+    var _r = useState([]), orders = _r[0], setOrders = _r[1];
+    var _s = useState(1), orderStep = _s[0], setOrderStep = _s[1]; // 1=cart, 2=address, 3=payment, 4=confirm
+    var _t = useState({ quartier: "", ville: "", telephone: "", instructions: "" }), deliveryAddress = _t[0], setDeliveryAddress = _t[1];
+    var _u = useState({ numero: "", operateur: "Wave" }), mobileMoneyForm = _u[0], setMobileMoneyForm = _u[1];
+    var _v = useState(null), reviewProduct = _v[0], setReviewProduct = _v[1];
+    var _w = useState(""), reviewText = _w[0], setReviewText = _w[1];
+    var _x = useState(5), reviewStars = _x[0], setReviewStars = _x[1];
+    var _y = useState(false), orderPlaced = _y[0], setOrderPlaced = _y[1];
+    var _z = useState(null), newOrderId = _z[0], setNewOrderId = _z[1];
+    // Load products from admin
+    useEffect(function () {
+        function loadProducts() {
+            return __awaiter(this, void 0, void 0, function () {
+                var r, p, e_1;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            _a.trys.push([0, 2, , 3]);
+                            return [4 /*yield*/, window.storage.get("oyombi-products")];
+                        case 1:
+                            r = _a.sent();
+                            if (r && r.value) {
+                                p = JSON.parse(r.value);
+                                if (p.length > 0)
+                                    setPRODUCTS(p);
+                            }
+                            return [3 /*break*/, 3];
+                        case 2:
+                            e_1 = _a.sent();
+                            return [3 /*break*/, 3];
+                        case 3: return [2 /*return*/];
+                    }
+                });
+            });
+        }
+        loadProducts();
+        var iv = setInterval(loadProducts, 4000);
+        return function () { return clearInterval(iv); };
+    }, []);
+    // Load user data from storage
+    useEffect(function () {
+        function loadUser() {
+            return __awaiter(this, void 0, void 0, function () {
+                var r, u, e_2;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            _a.trys.push([0, 2, , 3]);
+                            return [4 /*yield*/, window.storage.get("oyombi-user")];
+                        case 1:
+                            r = _a.sent();
+                            if (r && r.value) {
+                                u = JSON.parse(r.value);
+                                setUser(u.user);
+                                setPoints(u.points || 120);
+                                setOrders(u.orders || []);
+                            }
+                            return [3 /*break*/, 3];
+                        case 2:
+                            e_2 = _a.sent();
+                            return [3 /*break*/, 3];
+                        case 3: return [2 /*return*/];
+                    }
+                });
+            });
+        }
+        loadUser();
+    }, []);
+    function saveUser(u, pts, ords) {
+        return __awaiter(this, void 0, void 0, function () {
+            var e_3;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, window.storage.set("oyombi-user", JSON.stringify({ user: u, points: pts, orders: ords }))];
+                    case 1:
+                        _a.sent();
+                        return [3 /*break*/, 3];
+                    case 2:
+                        e_3 = _a.sent();
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        });
+    }
+    function saveOrder(order) {
+        return __awaiter(this, void 0, void 0, function () {
+            var e_4;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, window.storage.set("order-".concat(order.id), JSON.stringify(order), true)];
+                    case 1:
+                        _a.sent();
+                        return [3 /*break*/, 3];
+                    case 2:
+                        e_4 = _a.sent();
+                        return [3 /*break*/, 3];
+                    case 3: return [2 /*return*/];
+                }
+            });
+        });
+    }
+    var showToast = function (msg, color) {
+        if (color === void 0) { color = "#22c55e"; }
+        setToast({ msg: msg, color: color });
+        setTimeout(function () { return setToast(null); }, 2500);
+    };
+    var addToCart = function (product, size) {
+        if (!size) {
+            showToast("Choisissez une taille !", "#f59e0b");
+            return;
+        }
+        setCart(function (prev) {
+            var ex = prev.find(function (i) { return i.id === product.id && i.size === size; });
+            if (ex)
+                return prev.map(function (i) { return i.id === product.id && i.size === size ? __assign(__assign({}, i), { qty: i.qty + 1 }) : i; });
+            return __spreadArray(__spreadArray([], prev, true), [__assign(__assign({}, product), { size: size, qty: 1 })], false);
+        });
+        showToast("Ajouté au panier 🛒");
+    };
+    var removeFromCart = function (id, size) { return setCart(function (prev) { return prev.filter(function (i) { return !(i.id === id && i.size === size); }); }); };
+    var updateQty = function (id, size, delta) { return setCart(function (prev) { return prev.map(function (i) { return i.id === id && i.size === size ? __assign(__assign({}, i), { qty: Math.max(1, i.qty + delta) }) : i; }); }); };
+    var cartTotal = cart.reduce(function (s, i) { return s + i.price * i.qty; }, 0);
+    var cartCount = cart.reduce(function (s, i) { return s + i.qty; }, 0);
+    var unreadNotifs = notifs.filter(function (n) { return !n.read; }).length;
+    var placeOrder = function () { return __awaiter(_this, void 0, void 0, function () {
+        var orderId, order, newOrders, newPoints;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!user) {
+                        showToast("Connecte-toi pour commander !", "#f59e0b");
+                        setScreen("profile");
+                        return [2 /*return*/];
+                    }
+                    orderId = "CMD-".concat(Date.now().toString().slice(-6));
+                    order = {
+                        id: orderId,
+                        date: new Date().toLocaleDateString("fr-FR"),
+                        items: __spreadArray([], cart, true),
+                        total: cartTotal,
+                        payMethod: payMethod,
+                        address: deliveryAddress,
+                        status: 0,
+                        statusLabel: ORDER_STATUSES[0],
+                    };
+                    newOrders = __spreadArray([order], orders, true);
+                    newPoints = points + 50 + Math.floor(cartTotal / 1000);
+                    setOrders(newOrders);
+                    setPoints(newPoints);
+                    setNewOrderId(orderId);
+                    return [4 /*yield*/, saveUser(user, newPoints, newOrders)];
+                case 1:
+                    _a.sent();
+                    return [4 /*yield*/, saveOrder(order)];
+                case 2:
+                    _a.sent();
+                    setCart([]);
+                    setOrderStep(1);
+                    setOrderPlaced(true);
+                    setNotifs(function (prev) { return __spreadArray([{ id: Date.now(), text: "\u2705 Commande ".concat(orderId, " confirm\u00E9e !"), time: "maintenant", read: false }], prev, true); });
+                    return [2 /*return*/];
+            }
+        });
+    }); };
+    var submitReview = function () {
+        if (!reviewText) {
+            showToast("Écris un avis !", "#f59e0b");
+            return;
+        }
+        var newPoints = points + 10;
+        setPoints(newPoints);
+        if (user)
+            saveUser(user, newPoints, orders);
+        showToast("+10 points pour ton avis ! 🙏");
+        setReviewProduct(null);
+        setReviewText("");
+        setReviewStars(5);
+    };
+    var filteredProducts = selectedCategory
+        ? PRODUCTS.filter(function (p) { return p.category === selectedCategory; })
+        : searchQuery ? PRODUCTS.filter(function (p) { return p.name.toLowerCase().includes(searchQuery.toLowerCase()); })
+            : PRODUCTS;
+    var recommended = PRODUCTS.filter(function (p) { return p.rating >= 4.7; }).slice(0, 4);
+    var S = {
+        app: { maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "#F8F9FF", fontFamily: "'Nunito', sans-serif", position: "relative" },
+        header: { background: "#fff", padding: "14px 16px 10px", position: "sticky", top: 0, zIndex: 100, boxShadow: "0 2px 12px rgba(0,0,0,0.06)" },
+        searchBar: { background: "#F1F3FF", border: "none", borderRadius: 14, padding: "10px 14px 10px 38px", width: "100%", fontSize: 14, outline: "none", color: "#333", fontFamily: "'Nunito', sans-serif" },
+        bottomNav: { position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "#fff", display: "flex", justifyContent: "space-around", padding: "10px 0 18px", boxShadow: "0 -3px 20px rgba(0,0,0,0.08)", zIndex: 100 },
+        navBtn: function (active) { return ({ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, border: "none", background: "none", cursor: "pointer", color: active ? "#FF6B35" : "#9CA3AF", fontSize: 10, fontWeight: active ? 700 : 500 }); },
+        banner: { background: "linear-gradient(135deg, #1a1a2e, #0f3460)", borderRadius: 20, margin: "0 16px 20px", padding: "22px 20px", color: "#fff", position: "relative", overflow: "hidden" },
+        sectionTitle: { fontSize: 18, fontWeight: 800, color: "#111", margin: "0 16px 12px", display: "flex", alignItems: "center", gap: 8 },
+        productCard: { background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.07)", cursor: "pointer", flexShrink: 0 },
+        badge: function (b) { return ({ position: "absolute", top: 10, left: 10, background: b === "NEW" ? "#22c55e" : b === "DROP" ? "#EF4444" : "#F59E0B", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 8 }); },
+        btn: function (color, full) {
+            if (color === void 0) { color = "#FF6B35"; }
+            if (full === void 0) { full = false; }
+            return ({ background: color, color: "#fff", border: "none", borderRadius: 14, padding: "13px 22px", fontWeight: 800, fontSize: 15, cursor: "pointer", width: full ? "100%" : "auto", fontFamily: "'Nunito', sans-serif" });
+        },
+        tag: function (active) { return ({ background: active ? "#FF6B35" : "#F1F3FF", color: active ? "#fff" : "#555", border: "none", borderRadius: 20, padding: "7px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "'Nunito', sans-serif" }); },
+        input: { background: "#F8F9FF", border: "1.5px solid #E5E7EB", borderRadius: 12, padding: "12px 14px", fontSize: 14, outline: "none", width: "100%", marginBottom: 12, color: "#111", fontFamily: "'Nunito', sans-serif", boxSizing: "border-box" },
+        card: { background: "#fff", borderRadius: 20, padding: 20, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: 14 },
+        stepIndicator: function (active, done) { return ({ width: 32, height: 32, borderRadius: "50%", background: done ? "#22c55e" : active ? "#FF6B35" : "#E5E7EB", color: done || active ? "#fff" : "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0 }); },
+    };
+    var ProductCard = function (_a) {
+        var product = _a.product;
+        return (React.createElement("div", { style: __assign(__assign({}, S.productCard), { width: 160 }), onClick: function () { setSelectedProduct(product); setSelectedSize(null); setScreen("product"); } },
+            React.createElement("div", { style: { position: "relative" } },
+                React.createElement("img", { src: product.image, alt: product.name, style: { width: "100%", height: 160, objectFit: "cover" } }),
+                product.badge && React.createElement("div", { style: S.badge(product.badge) }, product.badge)),
+            React.createElement("div", { style: { padding: "10px 12px 12px" } },
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4, lineHeight: 1.3 } }, product.name),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 4, marginBottom: 4 } },
+                    React.createElement("span", { style: { fontSize: 11, color: "#F59E0B" } },
+                        "\u2605 ",
+                        product.rating),
+                    React.createElement("span", { style: { fontSize: 10, color: "#9CA3AF" } },
+                        "(",
+                        product.reviews,
+                        ")")),
+                React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center" } },
+                    React.createElement("span", { style: { fontSize: 14, fontWeight: 900, color: "#FF6B35" } },
+                        product.price.toLocaleString(),
+                        " F"),
+                    product.oldPrice && React.createElement("span", { style: { fontSize: 11, color: "#9CA3AF", textDecoration: "line-through" } }, product.oldPrice.toLocaleString())))));
+    };
+    // ===== SCREENS =====
+    var HomeScreen = function () { return (React.createElement("div", { style: { paddingBottom: 80 } },
+        React.createElement("div", { style: S.banner },
+            React.createElement("div", { style: { position: "absolute", right: -20, top: -20, width: 120, height: 120, background: "rgba(255,107,53,0.15)", borderRadius: "50%" } }),
+            React.createElement("div", { style: { fontSize: 11, fontWeight: 700, color: "#F7C59F", letterSpacing: 2, marginBottom: 6 } }, "STREETWEAR COLLECTION"),
+            React.createElement("div", { style: { fontSize: 26, fontWeight: 900, lineHeight: 1.2, marginBottom: 8 } },
+                "Style Urban",
+                React.createElement("br", null),
+                "Premium \uD83D\uDD25"),
+            React.createElement("button", { style: __assign(__assign({}, S.btn("#FF6B35")), { padding: "9px 20px", fontSize: 13 }), onClick: function () { return setScreen("categories"); } }, "Explorer \u2192")),
+        React.createElement("div", { style: S.sectionTitle }, "\u26A1 Promos Limit\u00E9es"),
+        React.createElement("div", { style: { display: "flex", gap: 12, padding: "0 16px 20px", overflowX: "auto" } }, PROMOS.map(function (p) { return (React.createElement("div", { key: p.id, style: __assign(__assign({}, S.productCard), { minWidth: 220, padding: 12, display: "flex", gap: 12, alignItems: "center" }) },
+            React.createElement("img", { src: p.image, alt: p.name, style: { width: 60, height: 60, objectFit: "cover", borderRadius: 12 } }),
+            React.createElement("div", null,
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 } }, p.name),
+                React.createElement("div", { style: { fontSize: 16, fontWeight: 900, color: "#EF4444", marginBottom: 4 } }, p.discount),
+                React.createElement(CountdownTimer, { endTime: p.endTime })))); })),
+        React.createElement("div", { style: S.sectionTitle }, "\u2728 Nouveaut\u00E9s"),
+        React.createElement("div", { style: { display: "flex", gap: 14, padding: "0 16px 20px", overflowX: "auto" } }, PRODUCTS.filter(function (p) { return p.badge === "NEW" || p.badge === "DROP"; }).map(function (p) { return React.createElement(ProductCard, { key: p.id, product: p }); })),
+        React.createElement("div", { style: S.sectionTitle }, "\uD83D\uDDC2 Cat\u00E9gories"),
+        React.createElement("div", { style: { display: "flex", gap: 10, padding: "0 16px 20px", overflowX: "auto" } }, CATEGORIES.map(function (c) { return (React.createElement("button", { key: c.id, style: { flexShrink: 0, background: "#fff", border: "2px solid ".concat(c.color, "20"), borderRadius: 16, padding: "12px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", minWidth: 80 }, onClick: function () { setSelectedCategory(c.id); setScreen("categories"); } },
+            React.createElement("span", { style: { fontSize: 22 } }, c.icon),
+            React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: c.color, textAlign: "center" } }, c.label.split(" ")[0]))); })),
+        React.createElement("div", { style: S.sectionTitle }, "\u2B50 Recommand\u00E9s"),
+        React.createElement("div", { style: { display: "flex", gap: 14, padding: "0 16px 20px", overflowX: "auto" } }, recommended.map(function (p) { return React.createElement(ProductCard, { key: p.id, product: p }); })))); };
+    var CategoriesScreen = function () { return (React.createElement("div", { style: { paddingBottom: 80 } },
+        React.createElement("div", { style: { padding: "16px 16px 8px" } },
+            React.createElement("div", { style: { display: "flex", gap: 8, overflowX: "auto", marginBottom: 16 } },
+                React.createElement("button", { style: S.tag(!selectedCategory), onClick: function () { return setSelectedCategory(null); } }, "Tout"),
+                CATEGORIES.map(function (c) { return React.createElement("button", { key: c.id, style: S.tag(selectedCategory === c.id), onClick: function () { return setSelectedCategory(c.id); } },
+                    c.icon,
+                    " ",
+                    c.label.split(" ")[0]); })),
+            React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 } }, filteredProducts.map(function (product) { return (React.createElement("div", { key: product.id, style: S.productCard, onClick: function () { setSelectedProduct(product); setSelectedSize(null); setScreen("product"); } },
+                React.createElement("div", { style: { position: "relative" } },
+                    React.createElement("img", { src: product.image, alt: product.name, style: { width: "100%", height: 150, objectFit: "cover" } }),
+                    product.badge && React.createElement("div", { style: S.badge(product.badge) }, product.badge)),
+                React.createElement("div", { style: { padding: "10px 12px 12px" } },
+                    React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 4 } }, product.name),
+                    React.createElement("div", { style: { fontSize: 14, fontWeight: 900, color: "#FF6B35" } },
+                        product.price.toLocaleString(),
+                        " F")))); }))))); };
+    var ProductScreen = function () {
+        if (!selectedProduct)
+            return null;
+        var p = selectedProduct;
+        return (React.createElement("div", { style: { paddingBottom: 100 } },
+            React.createElement("div", { style: { position: "relative" } },
+                React.createElement("img", { src: p.image, alt: p.name, style: { width: "100%", height: 320, objectFit: "cover" } }),
+                React.createElement("button", { onClick: function () { return setScreen("categories"); }, style: { position: "absolute", top: 16, left: 16, background: "rgba(255,255,255,0.9)", border: "none", borderRadius: 12, padding: "8px 14px", fontWeight: 700, cursor: "pointer", fontSize: 18 } }, "\u2190"),
+                p.badge && React.createElement("div", { style: __assign(__assign({}, S.badge(p.badge)), { fontSize: 12, padding: "5px 12px" }) }, p.badge),
+                React.createElement("button", { onClick: function () { navigator.share ? navigator.share({ title: p.name, text: "".concat(p.name, " - ").concat(p.price.toLocaleString(), " FCFA sur Oyombi Shop!"), url: window.location.href }) : showToast("Lien copié ! 📋"); }, style: { position: "absolute", top: 16, right: 16, background: "rgba(255,255,255,0.9)", border: "none", borderRadius: 12, padding: "8px 12px", cursor: "pointer", fontSize: 18 } }, "\uD83D\uDD17")),
+            React.createElement("div", { style: { padding: 20 } },
+                React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#111", marginBottom: 6 } }, p.name),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 12 } },
+                    React.createElement("span", { style: { color: "#F59E0B" } }, "★".repeat(Math.round(p.rating))),
+                    React.createElement("span", { style: { fontSize: 13, color: "#6B7280" } },
+                        p.rating,
+                        " \u00B7 ",
+                        p.reviews,
+                        " avis"),
+                    React.createElement("button", { onClick: function () { return setReviewProduct(p); }, style: { marginLeft: "auto", background: "#FFF5F0", border: "none", borderRadius: 10, padding: "5px 12px", fontSize: 12, color: "#FF6B35", fontWeight: 700, cursor: "pointer" } }, "+ Avis")),
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 16 } },
+                    React.createElement("span", { style: { fontSize: 28, fontWeight: 900, color: "#FF6B35" } },
+                        p.price.toLocaleString(),
+                        " FCFA"),
+                    p.oldPrice && React.createElement("span", { style: { fontSize: 16, color: "#9CA3AF", textDecoration: "line-through" } }, p.oldPrice.toLocaleString())),
+                React.createElement("div", { style: { fontSize: 14, color: "#555", lineHeight: 1.6, marginBottom: 20 } }, p.description),
+                React.createElement("div", { style: { marginBottom: 20 } },
+                    React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 10 } }, "Taille"),
+                    React.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap" } }, p.sizes.map(function (s) { return (React.createElement("button", { key: s, onClick: function () { return setSelectedSize(s); }, style: { background: selectedSize === s ? "#FF6B35" : "#F1F3FF", color: selectedSize === s ? "#fff" : "#333", border: "none", borderRadius: 10, padding: "9px 18px", fontWeight: 700, cursor: "pointer", fontSize: 13, fontFamily: "'Nunito', sans-serif" } }, s)); }))),
+                React.createElement("button", { style: S.btn("#FF6B35", true), onClick: function () { return addToCart(p, selectedSize); } }, "\uD83D\uDED2 Ajouter au panier"))));
+    };
+    // CART with multi-step checkout
+    var CartScreen = function () {
+        if (orderPlaced)
+            return (React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "70vh", gap: 16, padding: 24 } },
+                React.createElement("div", { style: { fontSize: 70 } }, "\uD83C\uDF89"),
+                React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#111" } }, "Commande confirm\u00E9e !"),
+                React.createElement("div", { style: { background: "#FF6B35", color: "#fff", padding: "8px 20px", borderRadius: 12, fontWeight: 800, fontSize: 16 } }, newOrderId),
+                React.createElement("div", { style: { fontSize: 14, color: "#6B7280", textAlign: "center" } }, "Tu recevras une confirmation. +50 points gagn\u00E9s !"),
+                React.createElement("button", { style: S.btn("#FF6B35"), onClick: function () { setOrderPlaced(false); setScreen("profile"); } }, "Voir mes commandes"),
+                React.createElement("button", { style: __assign(__assign({}, S.btn("#F1F3FF")), { color: "#333" }), onClick: function () { setOrderPlaced(false); setScreen("home"); } }, "Retour \u00E0 l'accueil")));
+        if (cart.length === 0)
+            return (React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 12 } },
+                React.createElement("div", { style: { fontSize: 60 } }, "\uD83D\uDED2"),
+                React.createElement("div", { style: { fontSize: 18, fontWeight: 800, color: "#111" } }, "Panier vide"),
+                React.createElement("button", { style: S.btn("#FF6B35"), onClick: function () { return setScreen("categories"); } }, "Voir les produits")));
+        return (React.createElement("div", { style: { padding: "16px 16px 100px" } },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", marginBottom: 24, gap: 0 } }, ["Panier", "Adresse", "Paiement"].map(function (label, i) { return (React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", flex: i < 2 ? 1 : 0 } },
+                React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 } },
+                    React.createElement("div", { style: S.stepIndicator(orderStep === i + 1, orderStep > i + 1) }, orderStep > i + 1 ? "✓" : i + 1),
+                    React.createElement("span", { style: { fontSize: 10, fontWeight: 700, color: orderStep === i + 1 ? "#FF6B35" : "#9CA3AF" } }, label)),
+                i < 2 && React.createElement("div", { style: { flex: 1, height: 2, background: orderStep > i + 1 ? "#22c55e" : "#E5E7EB", margin: "0 8px", marginBottom: 16 } }))); })),
+            orderStep === 1 && (React.createElement(React.Fragment, null,
+                cart.map(function (item) { return (React.createElement("div", { key: "".concat(item.id, "-").concat(item.size), style: __assign(__assign({}, S.card), { display: "flex", gap: 14, alignItems: "center", padding: 14 }) },
+                    React.createElement("img", { src: item.image, alt: item.name, style: { width: 80, height: 80, objectFit: "cover", borderRadius: 12 } }),
+                    React.createElement("div", { style: { flex: 1 } },
+                        React.createElement("div", { style: { fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 2 } }, item.name),
+                        React.createElement("div", { style: { fontSize: 12, color: "#6B7280", marginBottom: 8 } },
+                            "Taille: ",
+                            item.size),
+                        React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between" } },
+                            React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+                                React.createElement("button", { onClick: function () { return updateQty(item.id, item.size, -1); }, style: { background: "#F1F3FF", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontWeight: 700 } }, "-"),
+                                React.createElement("span", { style: { fontWeight: 700 } }, item.qty),
+                                React.createElement("button", { onClick: function () { return updateQty(item.id, item.size, 1); }, style: { background: "#FF6B35", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontWeight: 700, color: "#fff" } }, "+")),
+                            React.createElement("span", { style: { fontSize: 15, fontWeight: 900, color: "#FF6B35" } },
+                                (item.price * item.qty).toLocaleString(),
+                                " F"))),
+                    React.createElement("button", { onClick: function () { return removeFromCart(item.id, item.size); }, style: { background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 18, alignSelf: "flex-start" } }, "\u2715"))); }),
+                React.createElement("div", { style: __assign(__assign({}, S.card), { display: "flex", justifyContent: "space-between", alignItems: "center" }) },
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { fontSize: 13, color: "#6B7280" } },
+                            "Total (",
+                            cartCount,
+                            " articles)"),
+                        React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#FF6B35" } },
+                            cartTotal.toLocaleString(),
+                            " FCFA")),
+                    React.createElement("button", { style: S.btn(), onClick: function () { return setOrderStep(2); } }, "Continuer \u2192")))),
+            orderStep === 2 && (React.createElement("div", { style: S.card },
+                React.createElement("div", { style: { fontSize: 17, fontWeight: 800, color: "#111", marginBottom: 16 } }, "\uD83D\uDCCD Adresse de livraison"),
+                React.createElement("label", { style: { fontSize: 12, fontWeight: 700, color: "#9CA3AF", display: "block", marginBottom: 4 } }, "QUARTIER / ZONE"),
+                React.createElement("input", { style: S.input, placeholder: "Ex: Cocody, Yopougon, Plateau...", value: deliveryAddress.quartier, onChange: function (e) { return setDeliveryAddress(function (a) { return (__assign(__assign({}, a), { quartier: e.target.value })); }); } }),
+                React.createElement("label", { style: { fontSize: 12, fontWeight: 700, color: "#9CA3AF", display: "block", marginBottom: 4 } }, "VILLE"),
+                React.createElement("input", { style: S.input, placeholder: "Ex: Abidjan, Dakar, Douala...", value: deliveryAddress.ville, onChange: function (e) { return setDeliveryAddress(function (a) { return (__assign(__assign({}, a), { ville: e.target.value })); }); } }),
+                React.createElement("label", { style: { fontSize: 12, fontWeight: 700, color: "#9CA3AF", display: "block", marginBottom: 4 } }, "NUM\u00C9RO DE T\u00C9L\u00C9PHONE"),
+                React.createElement("input", { style: S.input, placeholder: "Ex: +225 07 00 00 00 00", value: deliveryAddress.telephone, onChange: function (e) { return setDeliveryAddress(function (a) { return (__assign(__assign({}, a), { telephone: e.target.value })); }); } }),
+                React.createElement("label", { style: { fontSize: 12, fontWeight: 700, color: "#9CA3AF", display: "block", marginBottom: 4 } }, "INSTRUCTIONS (optionnel)"),
+                React.createElement("input", { style: S.input, placeholder: "Ex: Appelle avant de venir, b\u00E2timent rouge...", value: deliveryAddress.instructions, onChange: function (e) { return setDeliveryAddress(function (a) { return (__assign(__assign({}, a), { instructions: e.target.value })); }); } }),
+                React.createElement("div", { style: { display: "flex", gap: 10 } },
+                    React.createElement("button", { style: __assign(__assign({}, S.btn("#F1F3FF")), { color: "#333", flex: 1 }), onClick: function () { return setOrderStep(1); } }, "\u2190 Retour"),
+                    React.createElement("button", { style: __assign(__assign({}, S.btn()), { flex: 2 }), onClick: function () {
+                            if (!deliveryAddress.quartier || !deliveryAddress.telephone) {
+                                showToast("Remplis quartier et téléphone !", "#f59e0b");
+                                return;
+                            }
+                            setOrderStep(3);
+                        } }, "Continuer \u2192")))),
+            orderStep === 3 && (React.createElement("div", null,
+                React.createElement("div", { style: S.card },
+                    React.createElement("div", { style: { fontSize: 17, fontWeight: 800, color: "#111", marginBottom: 16 } }, "\uD83D\uDCB3 Mode de paiement"),
+                    [["livraison", "🚚", "Paiement à la livraison", "Paye en cash quand tu reçois ta commande"], ["wave", "💙", "Wave", "Paye via Wave Mobile Money"], ["orange", "🟠", "Orange Money", "Paye via Orange Money"], ["mtn", "💛", "MTN MoMo", "Paye via MTN Mobile Money"]].map(function (_a) {
+                        var val = _a[0], icon = _a[1], label = _a[2], desc = _a[3];
+                        return (React.createElement("button", { key: val, onClick: function () { return setPayMethod(val); }, style: { display: "flex", alignItems: "center", gap: 14, background: payMethod === val ? "#FFF5F0" : "#F8F9FF", border: "2px solid ".concat(payMethod === val ? "#FF6B35" : "#E5E7EB"), borderRadius: 14, padding: "14px 16px", width: "100%", marginBottom: 10, cursor: "pointer", textAlign: "left", fontFamily: "'Nunito', sans-serif" } },
+                            React.createElement("div", { style: { width: 20, height: 20, borderRadius: "50%", border: "3px solid ".concat(payMethod === val ? "#FF6B35" : "#D1D5DB"), background: payMethod === val ? "#FF6B35" : "transparent", flexShrink: 0 } }),
+                            React.createElement("div", null,
+                                React.createElement("div", { style: { fontWeight: 700, fontSize: 14 } },
+                                    icon,
+                                    " ",
+                                    label),
+                                React.createElement("div", { style: { fontSize: 12, color: "#6B7280" } }, desc))));
+                    }),
+                    payMethod !== "livraison" && (React.createElement("div", { style: { background: "#F8F9FF", borderRadius: 12, padding: 14, marginTop: 4 } },
+                        React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#333", marginBottom: 8 } },
+                            "Num\u00E9ro ",
+                            payMethod === "wave" ? "Wave" : payMethod === "orange" ? "Orange Money" : "MTN MoMo"),
+                        React.createElement("input", { style: S.input, placeholder: "Ex: +225 07 00 00 00 00", value: mobileMoneyForm.numero, onChange: function (e) { return setMobileMoneyForm(function (f) { return (__assign(__assign({}, f), { numero: e.target.value })); }); } }),
+                        React.createElement("div", { style: { fontSize: 12, color: "#6B7280" } }, "\uD83D\uDCA1 Tu recevras un message pour confirmer le paiement")))),
+                React.createElement("div", { style: S.card },
+                    React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: "#111", marginBottom: 12 } }, "\uD83D\uDCCB R\u00E9capitulatif"),
+                    React.createElement("div", { style: { fontSize: 13, color: "#6B7280", marginBottom: 6 } },
+                        "\uD83D\uDCCD ",
+                        deliveryAddress.quartier,
+                        ", ",
+                        deliveryAddress.ville),
+                    React.createElement("div", { style: { fontSize: 13, color: "#6B7280", marginBottom: 12 } },
+                        "\uD83D\uDCDE ",
+                        deliveryAddress.telephone),
+                    cart.map(function (i) { return (React.createElement("div", { key: "".concat(i.id, "-").concat(i.size), style: { display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 } },
+                        React.createElement("span", null,
+                            i.name,
+                            " x",
+                            i.qty,
+                            " (",
+                            i.size,
+                            ")"),
+                        React.createElement("span", { style: { fontWeight: 700 } },
+                            (i.price * i.qty).toLocaleString(),
+                            " F"))); }),
+                    React.createElement("div", { style: { borderTop: "1px dashed #E5E7EB", paddingTop: 12, marginTop: 8, display: "flex", justifyContent: "space-between", fontSize: 18, fontWeight: 900 } },
+                        React.createElement("span", null, "Total"),
+                        React.createElement("span", { style: { color: "#FF6B35" } },
+                            cartTotal.toLocaleString(),
+                            " FCFA"))),
+                React.createElement("div", { style: { display: "flex", gap: 10 } },
+                    React.createElement("button", { style: __assign(__assign({}, S.btn("#F1F3FF")), { color: "#333", flex: 1 }), onClick: function () { return setOrderStep(2); } }, "\u2190 Retour"),
+                    React.createElement("button", { style: __assign(__assign({}, S.btn()), { flex: 2 }), onClick: placeOrder }, "\u2705 Confirmer la commande"))))));
+    };
+    var ProfileScreen = function () {
+        if (!user)
+            return (React.createElement("div", { style: { padding: 24, paddingBottom: 80 } },
+                React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } },
+                    React.createElement("div", { style: { fontSize: 50, marginBottom: 8 } }, "\uD83D\uDC64"),
+                    React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#111" } }, "Bienvenue !")),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 20 } }, ["login", "register"].map(function (m) { return (React.createElement("button", { key: m, onClick: function () { return setAuthMode(m); }, style: { flex: 1, background: authMode === m ? "#FF6B35" : "#F1F3FF", color: authMode === m ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "12px 0", fontWeight: 800, cursor: "pointer", fontFamily: "'Nunito', sans-serif" } }, m === "login" ? "Connexion" : "Créer un compte")); })),
+                React.createElement("input", { style: S.input, placeholder: "Ton nom complet", value: loginForm.name, onChange: function (e) { return setLoginForm(__assign(__assign({}, loginForm), { name: e.target.value })); } }),
+                React.createElement("input", { style: S.input, placeholder: "Email", type: "email", value: loginForm.email, onChange: function (e) { return setLoginForm(__assign(__assign({}, loginForm), { email: e.target.value })); } }),
+                React.createElement("input", { style: S.input, placeholder: "T\u00E9l\u00E9phone (WhatsApp / Mobile Money)", value: loginForm.phone, onChange: function (e) { return setLoginForm(__assign(__assign({}, loginForm), { phone: e.target.value })); } }),
+                authMode === "register" && React.createElement("input", { style: S.input, placeholder: "Quartier / Ville (adresse par d\u00E9faut)", value: loginForm.address, onChange: function (e) { return setLoginForm(__assign(__assign({}, loginForm), { address: e.target.value })); } }),
+                React.createElement("button", { style: S.btn("#FF6B35", true), onClick: function () { return __awaiter(_this, void 0, void 0, function () {
+                        var u, pts;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    if (!loginForm.name || !loginForm.email) {
+                                        showToast("Remplis nom et email !", "#EF4444");
+                                        return [2 /*return*/];
+                                    }
+                                    u = { name: loginForm.name, email: loginForm.email, phone: loginForm.phone, address: loginForm.address };
+                                    pts = authMode === "register" ? points + 20 : points;
+                                    setUser(u);
+                                    setPoints(pts);
+                                    return [4 /*yield*/, saveUser(u, pts, orders)];
+                                case 1:
+                                    _a.sent();
+                                    showToast(authMode === "register" ? "Compte créé ! +20 pts 🎉" : "Connecté ! 👋");
+                                    if (loginForm.address)
+                                        setDeliveryAddress(function (a) { return (__assign(__assign({}, a), { quartier: loginForm.address })); });
+                                    return [2 /*return*/];
+                            }
+                        });
+                    }); } }, authMode === "login" ? "Se connecter" : "Créer mon compte")));
+        return (React.createElement("div", { style: { padding: "16px 16px 80px" } },
+            React.createElement("div", { style: { background: "linear-gradient(135deg, #FF6B35, #F7C59F)", borderRadius: 24, padding: 24, marginBottom: 16, color: "#fff" } },
+                React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 16 } },
+                    React.createElement("div", { style: { width: 60, height: 60, background: "rgba(255,255,255,0.3)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 900 } }, user.name[0].toUpperCase()),
+                    React.createElement("div", null,
+                        React.createElement("div", { style: { fontSize: 20, fontWeight: 900 } }, user.name),
+                        React.createElement("div", { style: { fontSize: 13, opacity: 0.85 } }, user.email),
+                        user.phone && React.createElement("div", { style: { fontSize: 12, opacity: 0.75 } },
+                            "\uD83D\uDCDE ",
+                            user.phone)))),
+            React.createElement("div", { style: { background: "linear-gradient(135deg, #1a1a2e, #0f3460)", borderRadius: 18, padding: "16px 20px", marginBottom: 16, color: "#fff", display: "flex", alignItems: "center", gap: 14 } },
+                React.createElement("div", { style: { fontSize: 34 } }, "\uD83C\uDFC6"),
+                React.createElement("div", null,
+                    React.createElement("div", { style: { fontSize: 26, fontWeight: 900, color: "#F7C59F" } },
+                        points,
+                        " pts"),
+                    React.createElement("div", { style: { fontSize: 12, opacity: 0.7 } }, "Gagnez des points \u00E0 chaque achat !")),
+                React.createElement("div", { style: { marginLeft: "auto", textAlign: "right" } },
+                    React.createElement("div", { style: { fontSize: 11, opacity: 0.6 } }, "Niveau"),
+                    React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: points > 500 ? "#FFD700" : "#F7C59F" } }, points > 500 ? "🥇 Gold" : points > 200 ? "🥈 Silver" : "🥉 Bronze"))),
+            React.createElement("div", { style: S.card },
+                React.createElement("div", { style: { fontSize: 16, fontWeight: 800, color: "#111", marginBottom: 12 } },
+                    "\uD83D\uDCE6 Mes Commandes (",
+                    orders.length,
+                    ")"),
+                orders.length === 0 ? (React.createElement("div", { style: { textAlign: "center", color: "#9CA3AF", fontSize: 13, padding: "16px 0" } }, "Aucune commande pour l'instant")) : (orders.slice(0, 3).map(function (order) { return (React.createElement("div", { key: order.id, style: { background: "#F8F9FF", borderRadius: 14, padding: 14, marginBottom: 10 } },
+                    React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 6 } },
+                        React.createElement("span", { style: { fontWeight: 800, color: "#FF6B35", fontSize: 13 } }, order.id),
+                        React.createElement("span", { style: { fontSize: 12, color: "#6B7280" } }, order.date)),
+                    React.createElement("div", { style: { fontSize: 12, color: "#6B7280", marginBottom: 8 } },
+                        order.items.length,
+                        " article(s) \u00B7 ",
+                        order.total.toLocaleString(),
+                        " FCFA"),
+                    React.createElement("div", { style: { display: "flex", gap: 4, alignItems: "center" } }, ORDER_STATUSES.map(function (s, i) { return (React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", flex: i < 3 ? 1 : 0 } },
+                        React.createElement("div", { style: { width: 10, height: 10, borderRadius: "50%", background: i <= order.status ? "#22c55e" : "#E5E7EB", flexShrink: 0 } }),
+                        i < 3 && React.createElement("div", { style: { flex: 1, height: 2, background: i < order.status ? "#22c55e" : "#E5E7EB" } }))); })),
+                    React.createElement("div", { style: { fontSize: 12, fontWeight: 700, color: "#22c55e", marginTop: 6 } }, order.statusLabel))); }))),
+            React.createElement("div", { style: __assign(__assign({}, S.card), { padding: 0, overflow: "hidden" }) }, [
+                ["🎁", "Inviter un ami (+30 pts)", function () { var newPts = points + 30; setPoints(newPts); saveUser(user, newPts, orders); showToast("+30 points ! Lien copié 📋"); }],
+                ["⭐", "Laisser un avis (+10 pts)", function () { if (PRODUCTS[0])
+                        setReviewProduct(PRODUCTS[0]); }],
+                ["🔔", "Notifications Drop", function () { return showToast("Notifications activées 🔔"); }],
+                ["📍", "Modifier mon adresse", function () { return showToast("Modifie l'adresse au moment de commander"); }],
+            ].map(function (_a) {
+                var icon = _a[0], label = _a[1], action = _a[2];
+                return (React.createElement("button", { key: label, onClick: action, style: { display: "flex", alignItems: "center", gap: 14, padding: "15px 20px", width: "100%", background: "none", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#111", fontFamily: "'Nunito', sans-serif" } },
+                    React.createElement("span", { style: { fontSize: 20 } }, icon),
+                    " ",
+                    label,
+                    React.createElement("span", { style: { marginLeft: "auto", color: "#9CA3AF" } }, "\u203A")));
+            })),
+            React.createElement("button", { style: S.btn("#EF4444", true), onClick: function () { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            setUser(null);
+                            setOrders([]);
+                            setPoints(120);
+                            return [4 /*yield*/, saveUser(null, 120, [])];
+                        case 1:
+                            _a.sent();
+                            setLoginForm({ name: "", email: "", phone: "", address: "" });
+                            return [2 /*return*/];
+                    }
+                }); }); } }, "Se d\u00E9connecter")));
+    };
+    return (React.createElement("div", { style: S.app },
+        React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+        React.createElement("div", { style: S.header },
+            React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 } },
+                React.createElement("img", { src: "\uD83D\uDECD\uFE0F", alt: "Oyombi Shop", style: { height: 44, objectFit: "contain" } }),
+                React.createElement("button", { onClick: function () { return setShowNotif(!showNotif); }, style: { background: "#FFF5F0", border: "none", borderRadius: 12, padding: "9px 12px", cursor: "pointer", position: "relative", fontSize: 18 } },
+                    "\uD83D\uDD14",
+                    unreadNotifs > 0 && React.createElement("span", { style: { position: "absolute", top: 4, right: 4, width: 16, height: 16, background: "#EF4444", borderRadius: "50%", fontSize: 10, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 } }, unreadNotifs))),
+            React.createElement("div", { style: { position: "relative" } },
+                React.createElement("span", { style: { position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, color: "#9CA3AF" } }, "\uD83D\uDD0D"),
+                React.createElement("input", { style: S.searchBar, placeholder: "Rechercher un produit...", value: searchQuery, onChange: function (e) { setSearchQuery(e.target.value); if (e.target.value)
+                        setScreen("categories"); } }))),
+        showNotif && (React.createElement("div", { style: { position: "absolute", top: 120, right: 16, width: 300, background: "#fff", borderRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 200, overflow: "hidden" } },
+            React.createElement("div", { style: { padding: "14px 16px 10px", fontWeight: 800, fontSize: 15, borderBottom: "1px solid #F3F4F6" } }, "\uD83D\uDD14 Notifications"),
+            notifs.map(function (n) { return (React.createElement("div", { key: n.id, style: { padding: "12px 16px", borderBottom: "1px solid #F9FAFB", background: n.read ? "#fff" : "#FFF5F0" }, onClick: function () { return setNotifs(function (prev) { return prev.map(function (x) { return x.id === n.id ? __assign(__assign({}, x), { read: true }) : x; }); }); } },
+                React.createElement("div", { style: { fontSize: 13, fontWeight: 600 } }, n.text),
+                React.createElement("div", { style: { fontSize: 11, color: "#9CA3AF", marginTop: 2 } },
+                    "Il y a ",
+                    n.time))); }),
+            React.createElement("button", { onClick: function () { return setShowNotif(false); }, style: { width: "100%", padding: 12, background: "none", border: "none", cursor: "pointer", color: "#FF6B35", fontWeight: 700, fontSize: 13, fontFamily: "'Nunito', sans-serif" } }, "Fermer"))),
+        React.createElement("div", { style: { overflowY: "auto", height: "calc(100vh - 130px)" } },
+            screen === "home" && React.createElement(HomeScreen, null),
+            screen === "categories" && React.createElement(CategoriesScreen, null),
+            screen === "product" && React.createElement(ProductScreen, null),
+            screen === "cart" && React.createElement(CartScreen, null),
+            screen === "profile" && React.createElement(ProfileScreen, null)),
+        React.createElement("div", { style: S.bottomNav }, [["🏠", "Accueil", "home"], ["🗂", "Catégories", "categories"], ["\uD83D\uDED2".concat(cartCount > 0 ? " (".concat(cartCount, ")") : ""), "Panier", "cart"], ["👤", "Profil", "profile"]].map(function (_a) {
+            var icon = _a[0], label = _a[1], sc = _a[2];
+            return (React.createElement("button", { key: sc, style: S.navBtn(screen === sc), onClick: function () { setScreen(sc); if (sc !== "cart")
+                    setOrderStep(1); } },
+                React.createElement("span", { style: { fontSize: 22 } }, icon),
+                React.createElement("span", null, label)));
+        })),
+        reviewProduct && (React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end", zIndex: 500 } },
+            React.createElement("div", { style: { background: "#fff", borderRadius: "24px 24px 0 0", padding: 24, width: "100%", maxWidth: 430, margin: "0 auto" } },
+                React.createElement("div", { style: { fontSize: 18, fontWeight: 800, marginBottom: 8 } }, "\u2B50 Laisser un avis"),
+                React.createElement("div", { style: { fontSize: 14, color: "#6B7280", marginBottom: 16 } }, reviewProduct.name),
+                React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 16 } }, [1, 2, 3, 4, 5].map(function (s) { return (React.createElement("button", { key: s, onClick: function () { return setReviewStars(s); }, style: { fontSize: 28, background: "none", border: "none", cursor: "pointer", opacity: s <= reviewStars ? 1 : 0.3 } }, "\u2B50")); })),
+                React.createElement("textarea", { style: __assign(__assign({}, S.input), { minHeight: 80, resize: "none" }), placeholder: "Ton avis sur ce produit...", value: reviewText, onChange: function (e) { return setReviewText(e.target.value); } }),
+                React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 8 } },
+                    React.createElement("button", { style: __assign(__assign({}, S.btn("#F1F3FF")), { color: "#333", flex: 1 }), onClick: function () { return setReviewProduct(null); } }, "Annuler"),
+                    React.createElement("button", { style: __assign(__assign({}, S.btn()), { flex: 2 }), onClick: submitReview }, "Envoyer +10 pts \uD83C\uDF89"))))),
+        toast && (React.createElement("div", { style: { position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)", background: toast.color, color: "#fff", padding: "12px 24px", borderRadius: 16, fontWeight: 700, fontSize: 14, zIndex: 1000, whiteSpace: "nowrap", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" } }, toast.msg))));
+}
+
+var _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(React.createElement(OyombiShop));
+function removeSplash() {
+  var s = document.getElementById('splash');
+  if (s) { s.classList.add('hidden'); setTimeout(function(){ s.remove(); }, 600); }
+}
+setTimeout(removeSplash, 2000);
+</script>
+</body>
+</html>
