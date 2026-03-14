@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Oyombi Shop — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:'Nunito',sans-serif;background:#0a0d14;color:#fff}
+#root{min-height:100vh}
+
+#splash{
+position:fixed;inset:0;z-index:9999;
+background:#0a0d14;
+display:flex;flex-direction:column;align-items:center;justify-content:center;
+transition:opacity 0.5s ease;
+}
+#splash.hidden{opacity:0;pointer-events:none}
+#splash .ico{font-size:60px;margin-bottom:14px}
+#splash h1{font-size:26px;font-weight:900;color:#FF6B35}
+#splash p{font-size:12px;color:#6B7280;margin-top:4px}
+
+#to-shop{
+position:fixed;top:16px;left:16px;z-index:500;
+background:#111827;border:1.5px solid #1f2937;
+border-radius:12px;padding:8px 14px;
+color:#6B7280;font-size:12px;font-weight:700;
+font-family:'Nunito',sans-serif;cursor:pointer;
+text-decoration:none;display:flex;align-items:center;gap:6px;
+}
+#to-shop:hover{border-color:#FF6B35;color:#FF6B35}
+</style>
+</head>
+<body>
+
+<div id="splash">
+<div class="ico">👑</div>
+<h1>Oyombi Admin</h1>
+<p>Chargement en cours...</p>
+</div>
+
+<a href="boutique.html" id="to-shop">🛍️ Boutique</a>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const { useState, useEffect, useRef } = React;
+
+window.storage = {
+async get(key) {
+try { const v = localStorage.getItem('oy::'+key); return v ? {key, value:v} : null; }
+catch(e) { return null; }
+},
+async set(key, value) {
+try {
+const v = typeof value === 'string' ? value : JSON.stringify(value);
+localStorage.setItem('oy::'+key, v); return {key, value:v};
+} catch(e) { return null; }
+},
+async delete(key) {
+try { localStorage.removeItem('oy::'+key); return {key, deleted:true}; }
+catch(e) { return null; }
+},
+async list(prefix) {
+try {
+const keys = Object.keys(localStorage)
+.filter(k => k.startsWith('oy::'+(prefix||'')))
+.map(k => k.replace('oy::',''));
+return {keys};
+} catch(e) { return {keys:[]}; }
+}
+};
+
+</script>
+<script>
+
+const DEFAULT_ADMIN_PIN = "1234";
+
+const CATEGORIES = [
+{ id: "hommes", label: "Vêtements Hommes", icon: "👔" },
+{ id: "femmes", label: "Vêtements Femmes", icon: "👗" },
+{ id: "baskets", label: "Baskets", icon: "👟" },
+{ id: "parfums", label: "Parfums", icon: "🌸" },
+{ id: "acc-hommes", label: "Accessoires Hommes", icon: "⌚" },
+{ id: "acc-femmes", label: "Accessoires Femmes", icon: "👜" },
+{ id: "sport", label: "Équipements Sport", icon: "⚽" },
+{ id: "maillots", label: "Maillots", icon: "🏆" },
+];
+const SIZE_OPTIONS = {
+hommes: ["XS", "S", "M", "L", "XL", "XXL", "28", "30", "32", "34", "36"],
+femmes: ["XS", "S", "M", "L", "XL"],
+baskets: ["36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"],
+parfums: ["30ml", "50ml", "100ml", "200ml"],
+"acc-hommes": ["Unique"], "acc-femmes": ["Unique"],
+sport: ["XS", "S", "M", "L", "XL", "XXL"],
+maillots: ["S", "M", "L", "XL", "XXL"],
+};
+const VENDOR_TYPES = [
+{ id: "externe", label: "Vendeur Externe", icon: "🏪", color: "#8B5CF6" },
+{ id: "employe", label: "Employé", icon: "👤", color: "#3B82F6" },
+];
+const EMPTY_PRODUCT = { name: "", category: "hommes", price: "", oldPrice: "", image: "", images: [], sizes: [], description: "", badge: null, rating: 5.0, reviews: 0 };
+
+function PinScreen({ title, subtitle, icon, onSuccess, onBack }) {
+const [pin, setPin] = useState(["", "", "", ""]);
+const [error, setError] = useState("");
+const [shake, setShake] = useState(false);
+const [attempts, setAttempts] = useState(0);
+const [locked, setLocked] = useState(false);
+const [lockTime, setLockTime] = useState(0);
+const inputs = [useRef(), useRef(), useRef(), useRef()];
+useEffect(() => { var _a; (_a = inputs[0].current) === null || _a === void 0 ? void 0 : _a.focus(); }, []);
+useEffect(() => {
+if (locked && lockTime > 0) {
+const t = setInterval(() => setLockTime(p => { if (p <= 1) {
+clearInterval(t);
+setLocked(false);
+setAttempts(0);
+return 0;
+} return p - 1; }), 1000);
+return () => clearInterval(t);
+}
+}, [locked, lockTime]);
+function handleDigit(i, val) {
+var _a;
+if (locked || !/^\d*$/.test(val))
+return;
+const np = [...pin];
+np[i] = val.slice(-1);
+setPin(np);
+setError("");
+if (val && i < 3)
+(_a = inputs[i + 1].current) === null || _a === void 0 ? void 0 : _a.focus();
+if (np.every(d => d !== ""))
+setTimeout(() => onSuccess(np.join(""), () => {
+const na = attempts + 1;
+setAttempts(na);
+setError(`Code incorrect — ${3 - na} essai${3 - na > 1 ? "s" : ""} restant${3 - na > 1 ? "s" : ""}`);
+setShake(true);
+setPin(["", "", "", ""]);
+setTimeout(() => { var _a; setShake(false); (_a = inputs[0].current) === null || _a === void 0 ? void 0 : _a.focus(); }, 600);
+if (na >= 3) {
+setLocked(true);
+setLockTime(30);
+}
+}), 100);
+}
+function handleKey(i, e) { var _a; if (e.key === "Backspace" && !pin[i] && i > 0)
+(_a = inputs[i - 1].current) === null || _a === void 0 ? void 0 : _a.focus(); }
+function pressKey(k) {
+if (locked)
+return;
+const i = pin.findIndex(d => d === "");
+if (i === -1)
+return;
+handleDigit(i, k);
+}
+function pressDelete() {
+var _a;
+const last = [...pin].reverse().findIndex(d => d !== "");
+if (last === -1)
+return;
+const i = 3 - last;
+const np = [...pin];
+np[i] = "";
+setPin(np);
+(_a = inputs[i].current) === null || _a === void 0 ? void 0 : _a.focus();
+}
+return (React.createElement("div", { style: { minHeight: "100vh", background: "#0a0d14", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Nunito',sans-serif" } },
+React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+React.createElement("div", { style: { width: "100%", maxWidth: 360, padding: "0 24px" } },
+onBack && React.createElement("button", { onClick: onBack, style: { background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 14, fontWeight: 700, marginBottom: 24, fontFamily: "'Nunito',sans-serif" } }, "\u2190 Retour"),
+React.createElement("div", { style: { textAlign: "center", marginBottom: 32 } },
+React.createElement("div", { style: { fontSize: 52, marginBottom: 10 } }, icon),
+React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#FF6B35" } }, title),
+React.createElement("div", { style: { fontSize: 13, color: "#6B7280", marginTop: 4 } }, subtitle)),
+React.createElement("div", { style: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 28, animation: shake ? "shake 0.5s ease" : "none" } },
+React.createElement("style", null, `@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`),
+pin.map((d, i) => (React.createElement("div", { key: i, style: { width: 54, height: 54, borderRadius: 14, background: d ? "#FF6B35" : "#111827", border: `2px solid ${error ? "#EF4444" : d ? "#FF6B35" : "#1f2937"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 900, color: "#fff", transition: "all 0.15s", transform: d ? "scale(1.05)" : "scale(1)", boxShadow: d ? "0 4px 20px rgba(255,107,53,0.3)" : "none" } },
+d ? "●" : "",
+React.createElement("input", { ref: inputs[i], type: "tel", maxLength: 1, value: d, onChange: e => handleDigit(i, e.target.value), onKeyDown: e => handleKey(i, e), style: { position: "absolute", opacity: 0, width: 0, height: 0 } }))))),
+error && !locked && React.createElement("div", { style: { textAlign: "center", color: "#EF4444", fontSize: 13, fontWeight: 700, marginBottom: 14 } },
+"\u274C ",
+error),
+locked && React.createElement("div", { style: { textAlign: "center", color: "#F59E0B", fontSize: 13, fontWeight: 700, marginBottom: 14 } },
+"\uD83D\uDD12 Bloqu\u00E9 \u2014 R\u00E9essaie dans ",
+lockTime,
+"s"),
+React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 } }, ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, i) => (React.createElement("button", { key: i, onClick: () => k === "⌫" ? pressDelete() : k ? pressKey(k) : null, disabled: locked || k === "", style: { height: 62, borderRadius: 14, fontSize: k === "⌫" ? 22 : 22, fontWeight: 800, fontFamily: "'Nunito',sans-serif", background: k === "" ? "transparent" : k === "⌫" ? "#1f2937" : "#111827", border: k === "" ? "none" : `1.5px solid ${locked ? "#0d1117" : "#1f2937"}`, color: locked ? "#374151" : k === "⌫" ? "#9CA3AF" : "#fff", cursor: k === "" || locked ? "default" : "pointer" }, onMouseDown: e => { if (k && k !== "" && !locked)
+e.currentTarget.style.transform = "scale(0.93)"; }, onMouseUp: e => { e.currentTarget.style.transform = "scale(1)"; } }, k)))))));
+}
+
+function VendorSpace({ vendor, onLogout }) {
+var _a, _b, _c;
+const [products, setProducts] = useState([]);
+const [allProducts, setAllProducts] = useState([]);
+const [tab, setTab] = useState("products");
+const [form, setForm] = useState(EMPTY_PRODUCT);
+const [editId, setEditId] = useState(null);
+const [imagePreview, setImagePreview] = useState("");
+const [toast, setToast] = useState(null);
+const [deleteConfirm, setDeleteConfirm] = useState(null);
+useEffect(() => {
+async function load() {
+try {
+const r = await window.storage.get("oyombi-products");
+if (r === null || r === void 0 ? void 0 : r.value) {
+const all = JSON.parse(r.value);
+setAllProducts(all);
+setProducts(all.filter(p => p.vendorId === vendor.id));
+}
+}
+catch (e) { }
+}
+load();
+const iv = setInterval(load, 5000);
+return () => clearInterval(iv);
+}, [vendor.id]);
+const showToast = (msg, color = "#22c55e") => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+function toggleSize(size) { setForm(f => (Object.assign(Object.assign({}, f), { sizes: f.sizes.includes(size) ? f.sizes.filter(s => s !== size) : [...f.sizes, size] }))); }
+function handleImageUpload(e) {
+const files = Array.from(e.target.files);
+if (!files.length) return;
+const readers = [];
+files.forEach((file, idx) => {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    readers[idx] = ev.target.result;
+    if (readers.filter(Boolean).length === files.length) {
+      const [first, ...rest] = readers;
+      setForm(f => (Object.assign(Object.assign({}, f), { image: first, images: rest })));
+      setImagePreview(first);
+    }
+  };
+  reader.readAsDataURL(file);
+});
+}
+async function submitProduct() {
+if (!form.name || !form.price || !form.image) {
+showToast("Remplis nom, prix et image !", "#f59e0b");
+return;
+}
+if (!form.sizes.length) {
+showToast("Choisis au moins une taille !", "#f59e0b");
+return;
+}
+const product = Object.assign(Object.assign({}, form), { id: editId || Date.now(), price: parseInt(form.price), oldPrice: form.oldPrice ? parseInt(form.oldPrice) : null, rating: parseFloat(form.rating), vendorId: vendor.id, vendorName: vendor.name });
+const updated = editId ? allProducts.map(p => p.id === editId ? product : p) : [...allProducts, product];
+setAllProducts(updated);
+setProducts(updated.filter(p => p.vendorId === vendor.id));
+try {
+await window.storage.set("oyombi-products", JSON.stringify(updated));
+}
+catch (e) { }
+showToast(editId ? "Produit modifié ✅" : "Produit ajouté ✅");
+setForm(EMPTY_PRODUCT);
+setEditId(null);
+setImagePreview("");
+setTab("products");
+}
+async function deleteProduct(id) {
+const updated = allProducts.filter(p => p.id !== id);
+setAllProducts(updated);
+setProducts(updated.filter(p => p.vendorId === vendor.id));
+try {
+await window.storage.set("oyombi-products", JSON.stringify(updated));
+}
+catch (e) { }
+setDeleteConfirm(null);
+showToast("Supprimé", "#ef4444");
+}
+function startEdit(p) { setForm(Object.assign(Object.assign({}, p), { price: String(p.price), oldPrice: p.oldPrice ? String(p.oldPrice) : "" })); setEditId(p.id); setImagePreview(p.image); setTab("add"); }
+const totalRevenue = products.reduce((s, p) => s + p.price, 0);
+const S = {
+app: { minHeight: "100vh", background: "#0a0d14", fontFamily: "'Nunito',sans-serif", color: "#fff", display: "flex" },
+sidebar: { width: 220, background: "#111827", borderRight: "1px solid #1f2937", minHeight: "100vh", position: "fixed", left: 0, top: 0, display: "flex", flexDirection: "column" },
+main: { marginLeft: 220, flex: 1, padding: 28 },
+nav: (a) => ({ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", cursor: "pointer", background: a ? "rgba(139,92,246,0.1)" : "transparent", borderLeft: `3px solid ${a ? "#8B5CF6" : "transparent"}`, color: a ? "#8B5CF6" : "#9CA3AF", fontWeight: a ? 700 : 500, fontSize: 14 }),
+card: { background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: "20px 22px", marginBottom: 20 },
+input: { background: "#0a0d14", border: "1.5px solid #1f2937", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#fff", width: "100%", outline: "none", fontFamily: "'Nunito',sans-serif", boxSizing: "border-box" },
+label: { fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: 1, marginBottom: 6, display: "block", textTransform: "uppercase" },
+btn: (c = "#8B5CF6", o = false) => ({ background: o ? "transparent" : c, border: o ? `1.5px solid ${c}` : "none", borderRadius: 10, padding: "10px 20px", fontWeight: 700, fontSize: 13, color: o ? c : "#fff", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }),
+th: { padding: "11px 14px", fontSize: 11, fontWeight: 700, color: "#6B7280", textAlign: "left", borderBottom: "1px solid #1f2937", textTransform: "uppercase" },
+td: { padding: "13px 14px", fontSize: 13, borderBottom: "1px solid #0d1117", verticalAlign: "middle" },
+};
+const vendorColor = ((_a = VENDOR_TYPES.find(v => v.id === vendor.type)) === null || _a === void 0 ? void 0 : _a.color) || "#8B5CF6";
+return (React.createElement("div", { style: S.app },
+React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+React.createElement("div", { style: S.sidebar },
+React.createElement("div", { style: { padding: "20px", borderBottom: "1px solid #1f2937" } },
+React.createElement("div", { style: { fontSize: 28, marginBottom: 6 } }, vendor.avatar),
+React.createElement("div", { style: { fontSize: 16, fontWeight: 900, color: vendorColor } }, vendor.name),
+React.createElement("div", { style: { fontSize: 11, color: "#6B7280", marginTop: 2 } }, (_b = VENDOR_TYPES.find(v => v.id === vendor.type)) === null || _b === void 0 ? void 0 :
+_b.icon,
+" ", (_c = VENDOR_TYPES.find(v => v.id === vendor.type)) === null || _c === void 0 ? void 0 :
+_c.label)),
+React.createElement("div", { style: { flex: 1, paddingTop: 8 } }, [["🛍️", "Mes produits", "products", products.length], ["➕", "Ajouter produit", "add"]].map(([icon, label, key, count]) => (React.createElement("div", { key: key, style: S.nav(tab === key), onClick: () => { setTab(key); if (key === "add" && tab !== "add") {
+setForm(EMPTY_PRODUCT);
+setEditId(null);
+setImagePreview("");
+} } },
+React.createElement("span", { style: { fontSize: 18 } }, icon),
+React.createElement("span", { style: { flex: 1 } }, label),
+count > 0 && React.createElement("span", { style: { background: vendorColor, color: "#fff", fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 20 } }, count))))),
+React.createElement("div", { style: { padding: "14px 20px", borderTop: "1px solid #1f2937" } },
+React.createElement("div", { style: { fontSize: 11, color: "#6B7280" } }, "Mes produits"),
+React.createElement("div", { style: { fontSize: 20, fontWeight: 900, color: vendorColor, marginBottom: 10 } },
+products.length,
+" articles"),
+React.createElement("button", { onClick: onLogout, style: { background: "none", border: "1px solid #374151", borderRadius: 8, padding: "7px 14px", color: "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", width: "100%" } }, "\uD83D\uDD12 Se d\u00E9connecter"))),
+React.createElement("div", { style: S.main },
+tab === "products" && (React.createElement("div", null,
+React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 } },
+React.createElement("div", null,
+React.createElement("h1", { style: { fontSize: 22, fontWeight: 900, margin: "0 0 4px" } }, "\uD83D\uDECD\uFE0F Mes produits"),
+React.createElement("p", { style: { color: "#6B7280", fontSize: 14, margin: 0 } },
+products.length,
+" produits ajout\u00E9s par toi")),
+React.createElement("button", { style: S.btn(vendorColor), onClick: () => { setForm(EMPTY_PRODUCT); setEditId(null); setImagePreview(""); setTab("add"); } }, "\u2795 Ajouter")),
+products.length === 0 ? (React.createElement("div", { style: Object.assign(Object.assign({}, S.card), { textAlign: "center", padding: 60 }) },
+React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "\uD83D\uDCED"),
+React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 12 } }, "Tu n'as pas encore de produits"),
+React.createElement("button", { style: S.btn(vendorColor), onClick: () => setTab("add") }, "\u2795 Ajouter mon premier produit"))) : (React.createElement("div", { style: S.card },
+React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+React.createElement("thead", null,
+React.createElement("tr", null, ["Photo", "Produit", "Catégorie", "Prix", "Badge", "Actions"].map(h => React.createElement("th", { key: h, style: S.th }, h)))),
+React.createElement("tbody", null, products.map(p => {
+var _a, _b;
+return (React.createElement("tr", { key: p.id },
+React.createElement("td", { style: S.td },
+React.createElement("img", { src: p.image, alt: p.name, style: { width: 50, height: 50, objectFit: "cover", borderRadius: 10 } })),
+React.createElement("td", { style: S.td },
+React.createElement("div", { style: { fontWeight: 700 } }, p.name),
+React.createElement("div", { style: { fontSize: 11, color: "#6B7280" } },
+"Tailles: ",
+p.sizes.join(", "))),
+React.createElement("td", { style: S.td }, (_a = CATEGORIES.find(c => c.id === p.category)) === null || _a === void 0 ? void 0 :
+_a.icon,
+" ", (_b = CATEGORIES.find(c => c.id === p.category)) === null || _b === void 0 ? void 0 :
+_b.label),
+React.createElement("td", { style: S.td },
+React.createElement("div", { style: { fontWeight: 800, color: vendorColor } },
+p.price.toLocaleString(),
+" F"),
+p.oldPrice && React.createElement("div", { style: { fontSize: 11, color: "#6B7280", textDecoration: "line-through" } }, p.oldPrice.toLocaleString())),
+React.createElement("td", { style: S.td }, p.badge ? React.createElement("span", { style: { background: p.badge === "NEW" ? "#22c55e22" : p.badge === "DROP" ? "#EF444422" : "#F59E0B22", color: p.badge === "NEW" ? "#22c55e" : p.badge === "DROP" ? "#EF4444" : "#F59E0B", padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 800 } }, p.badge) : React.createElement("span", { style: { color: "#4B5563" } }, "\u2014")),
+React.createElement("td", { style: S.td },
+React.createElement("div", { style: { display: "flex", gap: 8 } },
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn("#3B82F6", true)), { padding: "6px 12px" }), onClick: () => startEdit(p) }, "\u270F\uFE0F"),
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn("#EF4444", true)), { padding: "6px 12px" }), onClick: () => setDeleteConfirm(p.id) }, "\uD83D\uDDD1")))));
+}))))))),
+tab === "add" && (React.createElement("div", { style: { maxWidth: 700 } },
+React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 24 } },
+React.createElement("button", { onClick: () => setTab("products"), style: { background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 20 } }, "\u2190"),
+React.createElement("h1", { style: { fontSize: 20, fontWeight: 900, margin: 0 } }, editId ? "Modifier le produit" : "Nouveau produit")),
+React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 } },
+React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 14 } },
+React.createElement("div", { style: S.card },
+React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: vendorColor, marginBottom: 12 } }, "\uD83D\uDCDD Informations"),
+React.createElement("label", { style: S.label }, "Nom *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 10 }), placeholder: "Nom du produit", value: form.name, onChange: e => setForm(f => (Object.assign(Object.assign({}, f), { name: e.target.value }))) }),
+React.createElement("label", { style: S.label }, "Cat\u00E9gorie *"),
+React.createElement("select", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 10 }), value: form.category, onChange: e => setForm(f => (Object.assign(Object.assign({}, f), { category: e.target.value, sizes: [] }))) }, CATEGORIES.map(c => React.createElement("option", { key: c.id, value: c.id },
+c.icon,
+" ",
+c.label))),
+React.createElement("label", { style: S.label }, "Description"),
+React.createElement("textarea", { style: Object.assign(Object.assign({}, S.input), { minHeight: 70, resize: "vertical" }), placeholder: "Description...", value: form.description, onChange: e => setForm(f => (Object.assign(Object.assign({}, f), { description: e.target.value }))) })),
+React.createElement("div", { style: S.card },
+React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: vendorColor, marginBottom: 12 } }, "\uD83D\uDCB0 Prix"),
+React.createElement("label", { style: S.label }, "Prix FCFA *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 10 }), type: "number", placeholder: "Ex: 18500", value: form.price, onChange: e => setForm(f => (Object.assign(Object.assign({}, f), { price: e.target.value }))) }),
+React.createElement("label", { style: S.label }, "Ancien prix (promo)"),
+React.createElement("input", { style: S.input, type: "number", placeholder: "Ex: 24000", value: form.oldPrice, onChange: e => setForm(f => (Object.assign(Object.assign({}, f), { oldPrice: e.target.value }))) })),
+React.createElement("div", { style: S.card },
+React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: vendorColor, marginBottom: 10 } }, "\uD83C\uDFF7 Badge"),
+React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, [null, "NEW", "DROP", "PROMO"].map(b => (React.createElement("button", { key: String(b), onClick: () => setForm(f => (Object.assign(Object.assign({}, f), { badge: b }))), style: Object.assign(Object.assign({}, S.btn(b === "NEW" ? "#22c55e" : b === "DROP" ? "#EF4444" : b === "PROMO" ? "#F59E0B" : "#374151", form.badge !== b)), { padding: "7px 14px", fontSize: 12 }) }, b || "Aucun")))))),
+React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 14 } },
+React.createElement("div", { style: S.card },
+React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: vendorColor, marginBottom: 10 } }, "\uD83D\uDDBC Photo *"),
+React.createElement("div", { style: { width: "100%", height: 140, background: "#0a0d14", borderRadius: 12, marginBottom: 10, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px dashed #1f2937" } }, imagePreview ? React.createElement("img", { src: imagePreview, alt: "preview", style: { width: "100%", height: "100%", objectFit: "cover" } }) : React.createElement("span", { style: { color: "#4B5563", fontSize: 13 } }, "Aper\u00E7u")),
+React.createElement("label", { style: S.label }, "\uD83D\uDCC1 Uploader"),
+React.createElement("input", { type: "file", accept: "image/*", multiple: true, onChange: handleImageUpload, style: Object.assign(Object.assign({}, S.input), { marginBottom: 8, cursor: "pointer", padding: "7px" }) }),
+React.createElement("label", { style: S.label }, "\uD83D\uDD17 Ou URL"),
+React.createElement("input", { style: S.input, placeholder: "https://...", value: form.image.startsWith("data:") ? "" : form.image, onChange: e => { setForm(f => (Object.assign(Object.assign({}, f), { image: e.target.value }))); setImagePreview(e.target.value); } })),
+React.createElement("div", { style: S.card },
+React.createElement("div", { style: { fontSize: 14, fontWeight: 800, color: vendorColor, marginBottom: 10 } }, "\uD83D\uDCD0 Tailles *"),
+React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8 } }, (SIZE_OPTIONS[form.category] || ["Unique"]).map(size => (React.createElement("button", { key: size, onClick: () => toggleSize(size), style: { background: form.sizes.includes(size) ? vendorColor : "#0a0d14", border: `1.5px solid ${form.sizes.includes(size) ? vendorColor : "#1f2937"}`, borderRadius: 8, padding: "7px 13px", color: form.sizes.includes(size) ? "#fff" : "#6B7280", fontWeight: 700, cursor: "pointer", fontSize: 13, fontFamily: "'Nunito',sans-serif" } }, size)))),
+form.sizes.length > 0 && React.createElement("div", { style: { marginTop: 8, fontSize: 12, color: "#6B7280" } },
+"S\u00E9lectionn\u00E9es: ",
+form.sizes.join(", "))))),
+React.createElement("div", { style: { display: "flex", gap: 10, marginTop: 16 } },
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn(vendorColor)), { padding: "12px 28px", fontSize: 14 }), onClick: submitProduct }, editId ? "💾 Sauvegarder" : "✅ Ajouter le produit"),
+React.createElement("button", { style: S.btn("#374151", true), onClick: () => setTab("products") }, "Annuler"))))),
+deleteConfirm && (React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } },
+React.createElement("div", { style: { background: "#111827", border: "1px solid #1f2937", borderRadius: 16, maxWidth: 300, width: "90%", textAlign: "center", padding: 28 } },
+React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\uD83D\uDDD1\uFE0F"),
+React.createElement("div", { style: { fontSize: 16, fontWeight: 800, marginBottom: 6 } }, "Supprimer ?"),
+React.createElement("div", { style: { color: "#6B7280", fontSize: 13, marginBottom: 18 } }, "Action irr\u00E9versible."),
+React.createElement("div", { style: { display: "flex", gap: 10, justifyContent: "center" } },
+React.createElement("button", { style: S.btn("#EF4444"), onClick: () => deleteProduct(deleteConfirm) }, "Supprimer"),
+React.createElement("button", { style: S.btn("#374151", true), onClick: () => setDeleteConfirm(null) }, "Annuler"))))),
+toast && React.createElement("div", { style: { position: "fixed", bottom: 24, right: 24, background: toast.color, color: "#fff", padding: "12px 22px", borderRadius: 14, fontWeight: 700, fontSize: 14, zIndex: 2000, boxShadow: "0 4px 20px rgba(0,0,0,0.4)" } }, toast.msg)));
+}
+
+function OyombiVendors() {
+const [screen, setScreen] = useState("home");
+const [vendors, setVendors] = useState([]);
+const [selectedVendor, setSelectedVendor] = useState(null);
+const [currentVendor, setCurrentVendor] = useState(null);
+const [adminAuthenticated, setAdminAuthenticated] = useState(false);
+const [adminTab, setAdminTab] = useState("vendors");
+const [toast, setToast] = useState(null);
+const [showAddVendor, setShowAddVendor] = useState(false);
+const [newVendor, setNewVendor] = useState({ name: "", type: "externe", avatar: "🏪", pin: "", pinConfirm: "" });
+const [products, setProducts] = useState([]);
+const [adminPin, setAdminPin] = useState(DEFAULT_ADMIN_PIN);
+const [pinForm, setPinForm] = useState({ current: "", newPin: "", confirm: "" });
+const [pinError, setPinError] = useState("");
+const AVATARS = ["🏪", "👤", "👨‍💼", "👩‍💼", "🧑‍💼", "🛍️", "💼", "🏬", "👨‍🦱", "👩‍🦱"];
+useEffect(() => {
+async function load() {
+try {
+const v = await window.storage.get("oyombi-vendors");
+if (v === null || v === void 0 ? void 0 : v.value)
+setVendors(JSON.parse(v.value));
+const p = await window.storage.get("oyombi-products");
+if (p === null || p === void 0 ? void 0 : p.value)
+setProducts(JSON.parse(p.value));
+const pin = await window.storage.get("oyombi-admin-pin");
+if (pin === null || pin === void 0 ? void 0 : pin.value)
+setAdminPin(pin.value);
+}
+catch (e) { }
+}
+load();
+}, []);
+const showToast = (msg, color = "#22c55e") => { setToast({ msg, color }); setTimeout(() => setToast(null), 2500); };
+async function saveVendors(list) {
+try {
+await window.storage.set("oyombi-vendors", JSON.stringify(list));
+}
+catch (e) { }
+}
+async function changeAdminPin() {
+setPinError("");
+if (pinForm.current !== adminPin) {
+setPinError("❌ PIN actuel incorrect");
+return;
+}
+if (!/^\d{4}$/.test(pinForm.newPin)) {
+setPinError("❌ Le nouveau PIN doit avoir 4 chiffres");
+return;
+}
+if (pinForm.newPin !== pinForm.confirm) {
+setPinError("❌ Les nouveaux PINs ne correspondent pas");
+return;
+}
+if (vendors.some(v => v.pin === pinForm.newPin)) {
+setPinError("❌ Ce PIN est déjà utilisé par un vendeur");
+return;
+}
+try {
+await window.storage.set("oyombi-admin-pin", pinForm.newPin);
+setAdminPin(pinForm.newPin);
+setPinForm({ current: "", newPin: "", confirm: "" });
+showToast("PIN modifié avec succès ✅");
+}
+catch (e) {
+setPinError("❌ Erreur lors de la sauvegarde");
+}
+}
+async function addVendor() {
+if (!newVendor.name) {
+showToast("Entre un nom !", "#f59e0b");
+return;
+}
+if (newVendor.pin.length !== 4 || !/^\d{4}$/.test(newVendor.pin)) {
+showToast("Le PIN doit avoir exactement 4 chiffres !", "#f59e0b");
+return;
+}
+if (newVendor.pin !== newVendor.pinConfirm) {
+showToast("Les PINs ne correspondent pas !", "#ef4444");
+return;
+}
+if (newVendor.pin === adminPin) {
+showToast("Ce PIN est réservé à l'admin !", "#ef4444");
+return;
+}
+const vendor = { id: Date.now(), name: newVendor.name, type: newVendor.type, avatar: newVendor.avatar, pin: newVendor.pin, createdAt: new Date().toLocaleDateString("fr-FR") };
+const updated = [...vendors, vendor];
+setVendors(updated);
+await saveVendors(updated);
+setNewVendor({ name: "", type: "externe", avatar: "🏪", pin: "", pinConfirm: "" });
+setShowAddVendor(false);
+showToast(`${vendor.name} ajouté ✅`);
+}
+async function deleteVendor(id) {
+const updated = vendors.filter(v => v.id !== id);
+setVendors(updated);
+await saveVendors(updated);
+showToast("Vendeur supprimé", "#ef4444");
+}
+function checkAdminPin(entered, onError) {
+if (entered === adminPin) {
+setAdminAuthenticated(true);
+setScreen("admin");
+}
+else
+onError();
+}
+function checkVendorPin(entered, onError) {
+if (entered === (selectedVendor === null || selectedVendor === void 0 ? void 0 : selectedVendor.pin)) {
+setCurrentVendor(selectedVendor);
+setScreen("vendor-space");
+}
+else
+onError();
+}
+const S = {
+app: { minHeight: "100vh", background: "#0a0d14", fontFamily: "'Nunito',sans-serif", color: "#fff" },
+sidebar: { width: 220, background: "#111827", borderRight: "1px solid #1f2937", minHeight: "100vh", position: "fixed", left: 0, top: 0, display: "flex", flexDirection: "column" },
+main: { marginLeft: 220, flex: 1, padding: 28 },
+card: (c) => ({ background: c ? `linear-gradient(135deg,${c}18,${c}06)` : "#111827", border: `1px solid ${c ? c + "28" : "#1f2937"}`, borderRadius: 16, padding: "20px 22px", marginBottom: 16 }),
+input: { background: "#0a0d14", border: "1.5px solid #1f2937", borderRadius: 10, padding: "10px 14px", fontSize: 14, color: "#fff", width: "100%", outline: "none", fontFamily: "'Nunito',sans-serif", boxSizing: "border-box", marginBottom: 10 },
+label: { fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: 1, marginBottom: 6, display: "block", textTransform: "uppercase" },
+btn: (c = "#FF6B35", o = false) => ({ background: o ? "transparent" : c, border: o ? `1.5px solid ${c}` : "none", borderRadius: 10, padding: "10px 20px", fontWeight: 700, fontSize: 13, color: o ? c : "#fff", cursor: "pointer", fontFamily: "'Nunito',sans-serif" }),
+nav: (a) => ({ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", cursor: "pointer", background: a ? "rgba(255,107,53,0.1)" : "transparent", borderLeft: `3px solid ${a ? "#FF6B35" : "transparent"}`, color: a ? "#FF6B35" : "#9CA3AF", fontWeight: a ? 700 : 500, fontSize: 14 }),
+th: { padding: "11px 14px", fontSize: 11, fontWeight: 700, color: "#6B7280", textAlign: "left", borderBottom: "1px solid #1f2937", textTransform: "uppercase" },
+td: { padding: "13px 14px", fontSize: 13, borderBottom: "1px solid #0d1117", verticalAlign: "middle" },
+};
+
+if (screen === "home")
+return (React.createElement("div", { style: Object.assign(Object.assign({}, S.app), { display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }) },
+React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+React.createElement("div", { style: { width: "100%", maxWidth: 420, padding: "0 24px", textAlign: "center" } },
+React.createElement("div", { style: { fontSize: 64, marginBottom: 16 } }, "\uD83D\uDECD\uFE0F"),
+React.createElement("div", { style: { fontSize: 28, fontWeight: 900, color: "#FF6B35", marginBottom: 4 } }, "Oyombi Shop"),
+React.createElement("div", { style: { fontSize: 14, color: "#6B7280", marginBottom: 40 } }, "Qui \u00EAtes-vous ?"),
+React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 14 } },
+React.createElement("button", { onClick: () => setScreen("admin-pin"), style: { background: "linear-gradient(135deg,#FF6B35,#e85520)", border: "none", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer", fontFamily: "'Nunito',sans-serif", textAlign: "left" } },
+React.createElement("span", { style: { fontSize: 32 } }, "\uD83D\uDC51"),
+React.createElement("div", null,
+React.createElement("div", { style: { fontSize: 16, fontWeight: 900, color: "#fff" } }, "Super Admin"),
+React.createElement("div", { style: { fontSize: 12, color: "rgba(255,255,255,0.7)" } }, "Acc\u00E8s total \u2014 G\u00E9rer vendeurs & commandes"))),
+React.createElement("button", { onClick: () => setScreen("vendor-select"), style: { background: "#111827", border: "2px solid #1f2937", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer", fontFamily: "'Nunito',sans-serif", textAlign: "left" } },
+React.createElement("span", { style: { fontSize: 32 } }, "\uD83C\uDFEA"),
+React.createElement("div", null,
+React.createElement("div", { style: { fontSize: 16, fontWeight: 900, color: "#fff" } }, "Vendeur"),
+React.createElement("div", { style: { fontSize: 12, color: "#6B7280" } }, "G\u00E9rer mes produits uniquement")))),
+vendors.length > 0 && (React.createElement("div", { style: { marginTop: 20, fontSize: 12, color: "#4B5563" } },
+vendors.length,
+" vendeur",
+vendors.length > 1 ? "s" : "",
+" actif",
+vendors.length > 1 ? "s" : "")))));
+
+if (screen === "admin-pin")
+return (React.createElement(PinScreen, { title: "Super Admin", subtitle: "Entre ton code PIN administrateur", icon: "\uD83D\uDC51", onSuccess: checkAdminPin, onBack: () => setScreen("home") }));
+
+if (screen === "vendor-select")
+return (React.createElement("div", { style: Object.assign(Object.assign({}, S.app), { display: "flex", alignItems: "center", justifyContent: "center" }) },
+React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+React.createElement("div", { style: { width: "100%", maxWidth: 420, padding: "0 24px" } },
+React.createElement("button", { onClick: () => setScreen("home"), style: { background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 14, fontWeight: 700, marginBottom: 24, fontFamily: "'Nunito',sans-serif" } }, "\u2190 Retour"),
+React.createElement("div", { style: { textAlign: "center", marginBottom: 28 } },
+React.createElement("div", { style: { fontSize: 36, marginBottom: 8 } }, "\uD83C\uDFEA"),
+React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#fff" } }, "Choisir mon compte"),
+React.createElement("div", { style: { fontSize: 13, color: "#6B7280", marginTop: 4 } }, "S\u00E9lectionne ton nom dans la liste")),
+vendors.length === 0 ? (React.createElement("div", { style: { textAlign: "center", padding: "40px 20px", background: "#111827", borderRadius: 16, border: "1px solid #1f2937" } },
+React.createElement("div", { style: { fontSize: 40, marginBottom: 10 } }, "\uD83D\uDE15"),
+React.createElement("div", { style: { fontWeight: 700, marginBottom: 6 } }, "Aucun vendeur enregistr\u00E9"),
+React.createElement("div", { style: { fontSize: 13, color: "#6B7280" } }, "Demande \u00E0 l'admin de t'ajouter"))) : (React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10 } }, vendors.map(v => {
+var _a, _b;
+return (React.createElement("button", { key: v.id, onClick: () => { setSelectedVendor(v); setScreen("vendor-pin"); }, style: { background: "#111827", border: "1.5px solid #1f2937", borderRadius: 14, padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", fontFamily: "'Nunito',sans-serif", textAlign: "left" } },
+React.createElement("span", { style: { fontSize: 32 } }, v.avatar),
+React.createElement("div", { style: { flex: 1 } },
+React.createElement("div", { style: { fontSize: 15, fontWeight: 800, color: "#fff" } }, v.name),
+React.createElement("div", { style: { fontSize: 12, color: "#6B7280" } }, (_a = VENDOR_TYPES.find(t => t.id === v.type)) === null || _a === void 0 ? void 0 :
+_a.icon,
+" ", (_b = VENDOR_TYPES.find(t => t.id === v.type)) === null || _b === void 0 ? void 0 :
+_b.label)),
+React.createElement("div", { style: { fontSize: 12, color: "#374151" } },
+products.filter(p => p.vendorId === v.id).length,
+" produits")));
+}))))));
+
+if (screen === "vendor-pin" && selectedVendor)
+return (React.createElement(PinScreen, { title: selectedVendor.name, subtitle: "Entre ton code PIN vendeur", icon: selectedVendor.avatar, onSuccess: checkVendorPin, onBack: () => setScreen("vendor-select") }));
+
+if (screen === "vendor-space" && currentVendor)
+return (React.createElement(VendorSpace, { vendor: currentVendor, onLogout: () => { setCurrentVendor(null); setScreen("home"); } }));
+
+if (screen === "admin" && adminAuthenticated)
+return (React.createElement("div", { style: Object.assign(Object.assign({}, S.app), { display: "flex" }) },
+React.createElement("link", { href: "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap", rel: "stylesheet" }),
+React.createElement("div", { style: S.sidebar },
+React.createElement("div", { style: { padding: "20px", borderBottom: "1px solid #1f2937" } },
+React.createElement("div", { style: { fontSize: 22, fontWeight: 900, color: "#FF6B35" } }, "\uD83D\uDC51 Super Admin"),
+React.createElement("div", { style: { fontSize: 11, color: "#6B7280", marginTop: 2 } }, "Oyombi Shop")),
+React.createElement("div", { style: { flex: 1, paddingTop: 8 } }, [["👥", "Vendeurs", "vendors", vendors.length], ["📊", "Vue d'ensemble", "overview"], ["🔐", "Mon PIN", "settings"]].map(([icon, label, key, count]) => (React.createElement("div", { key: key, style: S.nav(adminTab === key), onClick: () => setAdminTab(key) },
+React.createElement("span", { style: { fontSize: 18 } }, icon),
+React.createElement("span", { style: { flex: 1 } }, label),
+count > 0 && React.createElement("span", { style: { background: "#FF6B35", color: "#fff", fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 20 } }, count))))),
+React.createElement("div", { style: { padding: "14px 20px", borderTop: "1px solid #1f2937" } },
+React.createElement("button", { onClick: () => { setAdminAuthenticated(false); setScreen("home"); }, style: { background: "none", border: "1px solid #374151", borderRadius: 8, padding: "7px 14px", color: "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Nunito',sans-serif", width: "100%" } }, "\uD83D\uDD12 Se d\u00E9connecter"))),
+React.createElement("div", { style: S.main },
+adminTab === "vendors" && (React.createElement("div", null,
+React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 } },
+React.createElement("div", null,
+React.createElement("h1", { style: { fontSize: 22, fontWeight: 900, margin: "0 0 4px" } }, "\uD83D\uDC65 Gestion des vendeurs"),
+React.createElement("p", { style: { color: "#6B7280", fontSize: 14, margin: 0 } },
+vendors.length,
+" vendeur",
+vendors.length > 1 ? "s" : "",
+" enregistr\u00E9",
+vendors.length > 1 ? "s" : "")),
+React.createElement("button", { style: S.btn(), onClick: () => setShowAddVendor(true) }, "\u2795 Ajouter un vendeur")),
+React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 24 } }, [["🏪", "Externes", vendors.filter(v => v.type === "externe").length, "#8B5CF6"], ["👤", "Employés", vendors.filter(v => v.type === "employe").length, "#3B82F6"], ["🛍️", "Total produits", products.length, "#FF6B35"]].map(([icon, label, val, color]) => (React.createElement("div", { key: label, style: S.card(color) },
+React.createElement("div", { style: { fontSize: 22 } }, icon),
+React.createElement("div", { style: { fontSize: 24, fontWeight: 900, color } }, val),
+React.createElement("div", { style: { fontSize: 12, color: "#9CA3AF" } }, label))))),
+vendors.length === 0 ? (React.createElement("div", { style: Object.assign(Object.assign({}, S.card()), { textAlign: "center", padding: 60 }) },
+React.createElement("div", { style: { fontSize: 48, marginBottom: 12 } }, "\uD83D\uDC65"),
+React.createElement("div", { style: { fontSize: 16, fontWeight: 700, marginBottom: 12 } }, "Aucun vendeur pour l'instant"),
+React.createElement("button", { style: S.btn(), onClick: () => setShowAddVendor(true) }, "\u2795 Ajouter le premier vendeur"))) : (React.createElement("div", { style: S.card() },
+React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+React.createElement("thead", null,
+React.createElement("tr", null, ["Vendeur", "Type", "Produits", "Ajouté le", "Actions"].map(h => React.createElement("th", { key: h, style: S.th }, h)))),
+React.createElement("tbody", null, vendors.map(v => {
+const vType = VENDOR_TYPES.find(t => t.id === v.type);
+const vProducts = products.filter(p => p.vendorId === v.id).length;
+return (React.createElement("tr", { key: v.id },
+React.createElement("td", { style: S.td },
+React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10 } },
+React.createElement("span", { style: { fontSize: 28 } }, v.avatar),
+React.createElement("div", null,
+React.createElement("div", { style: { fontWeight: 700 } }, v.name),
+React.createElement("div", { style: { fontSize: 11, color: "#6B7280" } }, "PIN: \u2022\u2022\u2022\u2022")))),
+React.createElement("td", { style: S.td },
+React.createElement("span", { style: { background: (vType === null || vType === void 0 ? void 0 : vType.color) + "22", color: vType === null || vType === void 0 ? void 0 : vType.color, fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 8 } }, vType === null || vType === void 0 ? void 0 :
+vType.icon,
+" ", vType === null || vType === void 0 ? void 0 :
+vType.label)),
+React.createElement("td", { style: S.td },
+React.createElement("span", { style: { fontWeight: 700, color: "#FF6B35" } }, vProducts),
+" produit",
+vProducts > 1 ? "s" : ""),
+React.createElement("td", { style: Object.assign(Object.assign({}, S.td), { color: "#6B7280" }) }, v.createdAt),
+React.createElement("td", { style: S.td },
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn("#EF4444", true)), { padding: "6px 12px", fontSize: 12 }), onClick: () => deleteVendor(v.id) }, "\uD83D\uDDD1 Supprimer"))));
+}))))))),
+adminTab === "overview" && (React.createElement("div", null,
+React.createElement("h1", { style: { fontSize: 22, fontWeight: 900, margin: "0 0 20px" } }, "\uD83D\uDCCA Vue d'ensemble"),
+React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 14 } }, vendors.map(v => {
+var _a, _b;
+const vProducts = products.filter(p => p.vendorId === v.id);
+const vColor = ((_a = VENDOR_TYPES.find(t => t.id === v.type)) === null || _a === void 0 ? void 0 : _a.color) || "#8B5CF6";
+return (React.createElement("div", { key: v.id, style: S.card(vColor) },
+React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 12, marginBottom: 14 } },
+React.createElement("span", { style: { fontSize: 32 } }, v.avatar),
+React.createElement("div", null,
+React.createElement("div", { style: { fontWeight: 800, fontSize: 15 } }, v.name),
+React.createElement("div", { style: { fontSize: 12, color: "#6B7280" } }, (_b = VENDOR_TYPES.find(t => t.id === v.type)) === null || _b === void 0 ? void 0 : _b.label))),
+React.createElement("div", { style: { fontSize: 28, fontWeight: 900, color: vColor, marginBottom: 4 } }, vProducts.length),
+React.createElement("div", { style: { fontSize: 12, color: "#9CA3AF", marginBottom: 12 } },
+"produit",
+vProducts.length > 1 ? "s" : "",
+" en ligne"),
+vProducts.slice(0, 3).map(p => (React.createElement("div", { key: p.id, style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#9CA3AF", marginBottom: 4 } },
+React.createElement("span", null, p.name),
+React.createElement("span", { style: { fontWeight: 700, color: vColor } },
+p.price.toLocaleString(),
+" F")))),
+vProducts.length > 3 && React.createElement("div", { style: { fontSize: 11, color: "#4B5563" } },
+"+",
+vProducts.length - 3,
+" autres produits")));
+})))),
+adminTab === "settings" && (React.createElement("div", { style: { maxWidth: 480 } },
+React.createElement("h1", { style: { fontSize: 22, fontWeight: 900, margin: "0 0 4px" } }, "\uD83D\uDD10 Changer mon PIN"),
+React.createElement("p", { style: { color: "#6B7280", fontSize: 14, margin: "0 0 24px" } }, "Modifie ton code d'acc\u00E8s administrateur"),
+React.createElement("div", { style: { background: "linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,107,53,0.05))", border: "1px solid rgba(255,107,53,0.2)", borderRadius: 14, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", gap: 14 } },
+React.createElement("span", { style: { fontSize: 32 } }, "\uD83D\uDD11"),
+React.createElement("div", null,
+React.createElement("div", { style: { fontSize: 13, fontWeight: 700, color: "#FF6B35" } }, "PIN actuel"),
+React.createElement("div", { style: { fontSize: 22, letterSpacing: 6, color: "#fff", fontWeight: 900 } }, "\u2022\u2022\u2022\u2022"))),
+React.createElement("div", { style: { background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 24 } },
+React.createElement("label", { style: S.label }, "PIN actuel *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 14, fontFamily: "monospace", letterSpacing: 4, fontSize: 20 }), type: "password", maxLength: 4, placeholder: "\u2022\u2022\u2022\u2022", value: pinForm.current, onChange: e => { setPinError(""); setPinForm(f => (Object.assign(Object.assign({}, f), { current: e.target.value.replace(/\D/, "") }))); } }),
+React.createElement("label", { style: S.label }, "Nouveau PIN (4 chiffres) *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 14, fontFamily: "monospace", letterSpacing: 4, fontSize: 20 }), type: "password", maxLength: 4, placeholder: "\u2022\u2022\u2022\u2022", value: pinForm.newPin, onChange: e => { setPinError(""); setPinForm(f => (Object.assign(Object.assign({}, f), { newPin: e.target.value.replace(/\D/, "") }))); } }),
+React.createElement("label", { style: S.label }, "Confirmer le nouveau PIN *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 16, fontFamily: "monospace", letterSpacing: 4, fontSize: 20 }), type: "password", maxLength: 4, placeholder: "\u2022\u2022\u2022\u2022", value: pinForm.confirm, onChange: e => { setPinError(""); setPinForm(f => (Object.assign(Object.assign({}, f), { confirm: e.target.value.replace(/\D/, "") }))); } }),
+pinError && (React.createElement("div", { style: { background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "10px 14px", fontSize: 13, fontWeight: 700, color: "#EF4444", marginBottom: 16 } }, pinError)),
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn()), { width: "100%", textAlign: "center", padding: "13px", fontSize: 15 }), onClick: changeAdminPin }, "\uD83D\uDD10 Enregistrer le nouveau PIN")),
+React.createElement("div", { style: { marginTop: 16, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "12px 16px", fontSize: 13, color: "#fcd34d" } }, "\u26A0\uFE0F Note bien ton nouveau PIN \u2014 si tu l'oublies, tu perdras l'acc\u00E8s \u00E0 l'admin.")))),
+showAddVendor && (React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 } },
+React.createElement("div", { style: { background: "#111827", border: "1px solid #1f2937", borderRadius: 20, maxWidth: 440, width: "90%", padding: 28, maxHeight: "90vh", overflowY: "auto" } },
+React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 } },
+React.createElement("div", { style: { fontSize: 18, fontWeight: 900 } }, "\u2795 Nouveau vendeur"),
+React.createElement("button", { onClick: () => setShowAddVendor(false), style: { background: "none", border: "none", color: "#6B7280", cursor: "pointer", fontSize: 22 } }, "\u2715")),
+React.createElement("label", { style: S.label }, "Avatar"),
+React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 } }, AVATARS.map(a => (React.createElement("button", { key: a, onClick: () => setNewVendor(v => (Object.assign(Object.assign({}, v), { avatar: a }))), style: { width: 44, height: 44, fontSize: 24, borderRadius: 10, background: newVendor.avatar === a ? "#FF6B35" : "#0a0d14", border: `2px solid ${newVendor.avatar === a ? "#FF6B35" : "#1f2937"}`, cursor: "pointer" } }, a)))),
+React.createElement("label", { style: S.label }, "Nom du vendeur *"),
+React.createElement("input", { style: S.input, placeholder: "Ex: Kofi Mode, Ama Boutique...", value: newVendor.name, onChange: e => setNewVendor(v => (Object.assign(Object.assign({}, v), { name: e.target.value }))) }),
+React.createElement("label", { style: S.label }, "Type"),
+React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } }, VENDOR_TYPES.map(t => (React.createElement("button", { key: t.id, onClick: () => setNewVendor(v => (Object.assign(Object.assign({}, v), { type: t.id }))), style: { flex: 1, padding: "10px", borderRadius: 10, background: newVendor.type === t.id ? t.color + "22" : "#0a0d14", border: `2px solid ${newVendor.type === t.id ? t.color : "#1f2937"}`, color: newVendor.type === t.id ? t.color : "#9CA3AF", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "'Nunito',sans-serif" } },
+t.icon,
+" ",
+t.label)))),
+React.createElement("label", { style: S.label }, "Code PIN (4 chiffres) *"),
+React.createElement("input", { style: S.input, type: "password", maxLength: 4, placeholder: "Ex: 5678", value: newVendor.pin, onChange: e => setNewVendor(v => (Object.assign(Object.assign({}, v), { pin: e.target.value.replace(/\D/, "") }))) }),
+React.createElement("label", { style: S.label }, "Confirmer le PIN *"),
+React.createElement("input", { style: Object.assign(Object.assign({}, S.input), { marginBottom: 20 }), type: "password", maxLength: 4, placeholder: "R\u00E9p\u00E8te le PIN", value: newVendor.pinConfirm, onChange: e => setNewVendor(v => (Object.assign(Object.assign({}, v), { pinConfirm: e.target.value.replace(/\D/, "") }))) }),
+React.createElement("div", { style: { display: "flex", gap: 10 } },
+React.createElement("button", { style: Object.assign(Object.assign({}, S.btn()), { flex: 1, textAlign: "center" }), onClick: addVendor }, "\u2705 Cr\u00E9er le compte vendeur"),
+React.createElement("button", { style: S.btn("#374151", true), onClick: () => setShowAddVendor(false) }, "Annuler"))))),
+toast && React.createElement("div", { style: { position: "fixed", bottom: 24, right: 24, background: toast.color, color: "#fff", padding: "12px 22px", borderRadius: 14, fontWeight: 700, fontSize: 14, zIndex: 2000 } }, toast.msg)));
+return null;
+}
+</script>
+<script>
+const _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(React.createElement(OyombiVendors));
+
+window.addEventListener('load', () => {
+setTimeout(() => {
+const s = document.getElementById('splash');
+if (s) { s.classList.add('hidden'); setTimeout(() => s.remove(), 500); }
+}, 800);
+});
+</script>
+</body>
+</html>
